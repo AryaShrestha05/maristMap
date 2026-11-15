@@ -82,7 +82,7 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
       nodes.set(`core:${c.id}`, {
         id: `core:${c.id}`,
         kind: 'hub',
-        label: `Core: ${c.name}`,
+        label: c.name,
         core: true,
         satisfied: progress.get(c.id) != null
       })

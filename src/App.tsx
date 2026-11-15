@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import ThemeSwitch from './components/ThemeSwitch'
-import CoursePanel from './components/CoursePanel'
+import CoursePanel, { STATUS_LABEL } from './components/CoursePanel'
 import GridView from './components/GridView'
 import Sidebar from './components/Sidebar'
 import GraphView from './graph/GraphView'
@@ -10,24 +10,32 @@ import { CORE } from './data/core'
 import { loadState, saveState, type SavedState } from './state'
 
 const MAJOR_IDS = MAJORS.map((m) => m.id)
+const DEPARTMENTS = new Set(COURSES.map((c) => c.prefix)).size
+const CATALOG_URL = 'https://catalog.marist.edu/content.php?catoid=12&navoid=524'
 
 const majorLabel = (id: string): string => {
   const m = MAJOR_BY_ID.get(id)
   return m ? `${m.name}${m.concentration ? ` – ${m.concentration}` : ''}` : ''
 }
 
-/** Real departments and a few of their courses, for the start screen's background. */
+/** Every department with a handful of its real courses and the prerequisite links between them. */
 function backgroundGraph(): { nodes: GNode[]; edges: GEdge[] } {
   const nodes: GNode[] = []
   const edges: GEdge[] = []
+  const shown = new Set<string>()
   const byPrefix = new Map<string, string[]>()
   for (const c of COURSES) byPrefix.set(c.prefix, [...(byPrefix.get(c.prefix) ?? []), c.base])
   for (const [prefix, list] of byPrefix) {
     nodes.push({ id: `dept:${prefix}`, kind: 'hub', label: '' })
-    for (const base of list.slice(0, 5)) {
+    for (const base of list.slice(0, 7)) {
+      shown.add(base)
       nodes.push({ id: base, kind: 'course', label: '', status: 'available' })
       edges.push({ source: `dept:${prefix}`, target: base, kind: 'member' })
     }
+  }
+  for (const c of COURSES) {
+    if (!shown.has(c.base) || c.prereq?.kind !== 'course') continue
+    if (shown.has(c.prereq.code)) edges.push({ source: c.prereq.code, target: c.base, kind: 'prereq' })
   }
   return { nodes, edges }
 }
@@ -71,8 +79,7 @@ export default function App() {
       taken: taken.has(base) ? s.taken.filter((b) => b !== base) : [...s.taken, base],
       cart: s.cart.filter((b) => b !== base)
     })
-  const toggleCart = (base: string): void =>
-    update({ cart: cart.has(base) ? s.cart.filter((b) => b !== base) : [...s.cart, base] })
+  const toggleCart = (base: string): void => update({ cart: cart.has(base) ? s.cart.filter((b) => b !== base) : [...s.cart, base] })
   const open = (base: string): void => {
     setSelected(base)
     setFocus(base)
@@ -89,28 +96,21 @@ export default function App() {
 
   const describe = (n: GNode): { title: string; detail: string } => {
     if (n.kind === 'hub') {
+      if (n.root) return { title: n.label, detail: n.id === 'root:core' ? 'Core/Liberal Studies, required of every Marist student' : majorLabel(major?.id ?? '') }
       const isCore = CORE.some((c) => `core:${c.id}` === n.id)
       return {
         title: n.label,
-        detail: isCore ? (n.satisfied ? 'Satisfied · click to show or hide courses' : 'Not satisfied yet · click to show courses') : 'Requirement'
+        detail: isCore ? (n.satisfied ? 'Satisfied · click to show approved courses' : 'Not satisfied yet · click to show approved courses') : 'Requirement'
       }
     }
     const c = COURSE_BY_BASE.get(n.id)
-    const st = n.missing
-      ? 'Not in the 2026–27 catalog'
-      : n.status === 'taken'
-        ? 'Taken'
-        : n.status === 'available'
-          ? 'Can take'
-          : n.status === 'check'
-            ? 'Check requirement'
-            : 'Prerequisites missing'
+    const st = n.missing ? 'Not in the 2026–27 catalog' : STATUS_LABEL[n.status ?? 'locked']
     return { title: c ? `${c.code} · ${c.title}` : n.id, detail: `${st}${n.inCart ? ' · in cart' : ''}` }
   }
 
   if (!major || !graph) {
     return (
-      <div className="start">
+      <main className="start">
         <div className="start-bg" aria-hidden="true">
           <GraphView
             nodes={bg.nodes}
@@ -118,13 +118,17 @@ export default function App() {
             theme={s.theme}
             selectedId={null}
             focusId={null}
+            ambient
             onSelect={() => {}}
             onToggleCore={() => {}}
             describe={() => ({ title: '', detail: '' })}
           />
         </div>
-        <div className="start-switch">
-          <ThemeSwitch mode={s.theme} onChange={(theme) => update({ theme })} />
+        <div className="start-vignette" aria-hidden="true" />
+        <div className="start-top">
+          <div className="switch-wrap">
+            <ThemeSwitch mode={s.theme} onChange={(theme) => update({ theme })} />
+          </div>
         </div>
         <form
           className="start-card"
@@ -133,30 +137,54 @@ export default function App() {
             if (picked) update({ majorId: picked })
           }}
         >
-          <h1>maristMap</h1>
-          <label htmlFor="major">Your major</label>
-          <select id="major" value={picked} onChange={(e) => setPicked(e.target.value)}>
-            <option value="">Choose your major…</option>
-            {MAJORS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {majorLabel(m.id)}
-              </option>
-            ))}
-          </select>
+          <img className="mark" src="/fox.png" alt="Marist Red Fox" />
+          <h1>
+            marist<span>Map</span>
+          </h1>
+          <p className="lede">Pick your major to see every course you need, what each one requires, and what it unlocks.</p>
+          <div className="field">
+            <label htmlFor="major">Major</label>
+            <select id="major" className="select" value={picked} onChange={(e) => setPicked(e.target.value)}>
+              <option value="">Choose your major…</option>
+              {MAJORS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {majorLabel(m.id)}
+                </option>
+              ))}
+            </select>
+          </div>
           <button className="btn primary big" disabled={!picked}>
             Show my map
           </button>
+          <p className="facts-line">
+            {COURSES.length.toLocaleString()} courses · {DEPARTMENTS} departments · {MAJORS.length} majors and concentrations ·{' '}
+            <a href={CATALOG_URL} target="_blank" rel="noreferrer">
+              2026–27 catalog
+            </a>
+          </p>
         </form>
-      </div>
+      </main>
     )
   }
 
   return (
     <div className="app">
-      <nav className="navbar">
-        <span className="logo">maristMap</span>
+      <nav className="navbar" aria-label="Main">
+        <button
+          className="brand"
+          onClick={() => {
+            setPicked(major.id)
+            update({ majorId: null })
+            setSelected(null)
+          }}
+          title="Change major"
+        >
+          <img src="/fox.png" alt="" />
+          maristMap
+        </button>
         <select
           aria-label="Major"
+          className="select"
           value={major.id}
           onChange={(e) => {
             update({ majorId: e.target.value })
@@ -171,23 +199,31 @@ export default function App() {
           ))}
         </select>
         <div className="seg" role="group" aria-label="View">
-          <button className={s.view === 'graph' ? 'on' : ''} onClick={() => update({ view: 'graph' })}>
+          <button className={s.view === 'graph' ? 'on' : ''} aria-pressed={s.view === 'graph'} onClick={() => update({ view: 'graph' })}>
             Graph
           </button>
-          <button className={s.view === 'grid' ? 'on' : ''} onClick={() => update({ view: 'grid' })}>
+          <button className={s.view === 'grid' ? 'on' : ''} aria-pressed={s.view === 'grid'} onClick={() => update({ view: 'grid' })}>
             Grid
           </button>
         </div>
         <div className="seg" role="group" aria-label="Group by">
-          <button className={s.groupBy === 'requirements' ? 'on' : ''} onClick={() => update({ groupBy: 'requirements' })}>
+          <button
+            className={s.groupBy === 'requirements' ? 'on' : ''}
+            aria-pressed={s.groupBy === 'requirements'}
+            onClick={() => update({ groupBy: 'requirements' })}
+          >
             Requirements
           </button>
-          <button className={s.groupBy === 'departments' ? 'on' : ''} onClick={() => update({ groupBy: 'departments' })}>
+          <button
+            className={s.groupBy === 'departments' ? 'on' : ''}
+            aria-pressed={s.groupBy === 'departments'}
+            onClick={() => update({ groupBy: 'departments' })}
+          >
             Departments
           </button>
         </div>
         <span className="spacer" />
-        <a className="catalog-link" href={major.url} target="_blank" rel="noreferrer">
+        <a className="nav-link" href={major.url} target="_blank" rel="noreferrer">
           Catalog page ↗
         </a>
         <ThemeSwitch mode={s.theme} onChange={(theme) => update({ theme })} />
@@ -199,11 +235,9 @@ export default function App() {
           cart={s.cart}
           onOpen={open}
           onToggleCart={toggleCart}
-          onMarkTaken={(bases) =>
-            update({ taken: [...new Set([...s.taken, ...bases])], cart: s.cart.filter((b) => !bases.includes(b)) })
-          }
+          onMarkTaken={(bases) => update({ taken: [...new Set([...s.taken, ...bases])], cart: s.cart.filter((b) => !bases.includes(b)) })}
         />
-        <div className="stage">
+        <main className="stage">
           {s.view === 'graph' ? (
             <GraphView
               nodes={graph.nodes}
@@ -218,7 +252,7 @@ export default function App() {
           ) : (
             <GridView nodes={graph.nodes} edges={graph.edges} selectedId={selected} onSelect={open} onToggleCore={toggleCore} />
           )}
-          <div className="legend">
+          <div className="legend" aria-label="Legend">
             <span>
               <i className="dot taken" /> Taken
             </span>
@@ -235,7 +269,8 @@ export default function App() {
               <i className="dot cart" /> In cart
             </span>
           </div>
-        </div>
+          {s.view === 'graph' && <p className="stage-hint">Click a course for details · click a Core circle to see its approved courses · scroll to zoom</p>}
+        </main>
         {selected && (
           <CoursePanel
             base={selected}

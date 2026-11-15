@@ -1,6 +1,6 @@
 import { CORE } from '../data/core'
 import { COURSE_BY_BASE, COURSES } from '../data'
-import { countsToward, hasUnparsedPrereq, historyCredits, prereqCheck, status, unlocks } from '../lib/plan'
+import { countsToward, hasUnparsedPrereq, historyCredits, prereqCheck, status, unlocks, type Status } from '../lib/plan'
 import type { Major, Prereq } from '../lib/types'
 
 interface Props {
@@ -14,23 +14,31 @@ interface Props {
   onClose: () => void
 }
 
+export const STATUS_LABEL: Record<Status, string> = {
+  taken: 'Taken',
+  available: 'Can take',
+  check: 'Check requirement',
+  locked: 'Prerequisites missing'
+}
+
 const coreName = (id: string): string => CORE.find((c) => c.id === id)?.name ?? id
 
 function PrereqTree({ p, taken, onOpen }: { p: Prereq; taken: Set<string>; onOpen: (b: string) => void }) {
   if (p.kind === 'course') {
     const ok = taken.has(p.code)
     return (
-      <button className={`chip ${ok ? 'ok' : 'miss'}`} onClick={() => onOpen(p.code)}>
-        {ok ? '✓' : '✗'} {p.code}
+      <button className={`course-chip ${ok ? 'ok' : ''}`} onClick={() => onOpen(p.code)} title={COURSE_BY_BASE.get(p.code)?.title}>
+        <span className="mk" aria-hidden="true">{ok ? '✓' : '○'}</span>
+        {p.code}
       </button>
     )
   }
-  if (p.kind === 'text') return <span className="chip text">{p.text}</span>
+  if (p.kind === 'text') return <span className="cond">{p.text}</span>
   return (
-    <span className="prereq-group">
+    <span className="req">
       {p.of.map((x, i) => (
-        <span key={i} className="prereq-item">
-          {i > 0 && <span className="joiner">{p.kind === 'all' ? 'and' : 'or'}</span>}
+        <span key={i} className="req">
+          {i > 0 && <span className="req-join">{p.kind === 'all' ? 'and' : 'or'}</span>}
           <PrereqTree p={x} taken={taken} onOpen={onOpen} />
         </span>
       ))}
@@ -42,12 +50,17 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
   const course = COURSE_BY_BASE.get(base)
   if (!course) {
     return (
-      <aside className="panel">
-        <header>
-          <h2>{base}</h2>
-          <button className="close" onClick={onClose} aria-label="Close">✕</button>
-        </header>
-        <p className="muted">Listed by this major, but not in the 2026–27 course catalog.</p>
+      <aside className="panel" aria-label={base}>
+        <div className="panel-head">
+          <div className="row">
+            <span className="code">{base}</span>
+            <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+          </div>
+          <h2>Not in the 2026–27 catalog</h2>
+        </div>
+        <div className="panel-body">
+          <p className="muted">This major lists {base}, but it isn’t in the current course catalog.</p>
+        </div>
       </aside>
     )
   }
@@ -55,74 +68,90 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
   const check = prereqCheck(course.prereq, taken)
   const counts = countsToward(base, major, historyCredits(taken, COURSE_BY_BASE))
   const opens = unlocks(base, COURSES)
+  const isTaken = taken.has(base)
+
   return (
-    <aside className="panel">
-      <header>
-        <div>
-          <div className="code">{course.code}</div>
-          <h2>{course.title}</h2>
+    <aside className="panel" aria-label={`${course.code} ${course.title}`}>
+      <div className="panel-head">
+        <div className="row">
+          <span className="code">{course.code}</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close (Esc)" title="Close (Esc)">✕</button>
         </div>
-        <button className="close" onClick={onClose} aria-label="Close">✕</button>
-      </header>
-
-      <div className="facts">
-        <span>{course.credits} credits</span>
-        {course.liberalArts !== null && <span>{course.liberalArts ? 'Liberal Arts' : 'Non Liberal Arts'}</span>}
-        {course.offered && <span>Offered: {course.offered}</span>}
-        <span className={`status ${st}`}>{st === 'taken' ? 'Taken' : st === 'available' ? 'Can take' : st === 'check' ? 'Check requirement' : 'Prerequisites missing'}</span>
-      </div>
-
-      <div className="actions">
-        <button className={taken.has(base) ? 'btn' : 'btn primary'} onClick={() => onToggleTaken(base)}>
-          {taken.has(base) ? 'Unmark taken' : 'Mark as taken'}
-        </button>
-        {!taken.has(base) && (
-          <button className="btn" onClick={() => onToggleCart(base)}>
-            {cart.has(base) ? 'Remove from cart' : 'Add to cart'}
+        <h2>{course.title}</h2>
+        <div className="pills">
+          <span className={`pill status ${st}`}>{STATUS_LABEL[st]}</span>
+          <span className="pill">{course.credits} credits</span>
+          {course.liberalArts !== null && <span className="pill">{course.liberalArts ? 'Liberal Arts' : 'Non Liberal Arts'}</span>}
+          {course.offered && <span className="pill">{course.offered.replace(/\.$/, '')}</span>}
+        </div>
+        <div className="panel-actions">
+          <button className={isTaken ? 'btn' : 'btn primary'} onClick={() => onToggleTaken(base)}>
+            {isTaken ? 'Unmark taken' : 'Mark as taken'}
           </button>
-        )}
+          {!isTaken && (
+            <button className="btn" onClick={() => onToggleCart(base)}>
+              {cart.has(base) ? 'Remove from cart' : 'Add to cart'}
+            </button>
+          )}
+        </div>
       </div>
 
-      <section>
-        <h3>Prerequisites</h3>
-        {!course.prereqText && <p className="muted">None</p>}
-        {course.prereq && <PrereqTree p={course.prereq} taken={taken} onOpen={onOpen} />}
-        {hasUnparsedPrereq(course) && <p className="verbatim">{course.prereqText}</p>}
-        {course.prereq && check.met === null && <p className="muted small">Some conditions can’t be checked here: {course.prereqText}</p>}
-        {course.coreqText && <p className="small">Corequisite: {course.coreqText}</p>}
-      </section>
-
-      <section>
-        <h3>Counts toward</h3>
-        {counts.groups.length === 0 && counts.core.length === 0 && <p className="muted">Not listed in this major or the Core.</p>}
-        <div className="chips">
-          {counts.groups.map((g) => (
-            <span key={g} className="chip group">{major.name}: {g}</span>
-          ))}
-          {counts.core.map((id) => (
-            <span key={id} className="chip core">Core: {coreName(id)}</span>
-          ))}
-        </div>
-        {counts.crossListedWarning && (
-          <p className="warn">Counts toward only one Breadth category, not all of these. (Marist: “A cross-listed course can only satisfy ONE breadth requirement.”)</p>
-        )}
-      </section>
-
-      {opens.length > 0 && (
+      <div className="panel-body">
         <section>
-          <h3>Unlocks</h3>
-          <div className="chips">
-            {opens.map((b) => (
-              <button key={b} className="chip link" onClick={() => onOpen(b)}>{b}</button>
-            ))}
-          </div>
+          <h3>Prerequisites</h3>
+          {!course.prereqText && <p className="muted small">None listed.</p>}
+          {course.prereq && <PrereqTree p={course.prereq} taken={taken} onOpen={onOpen} />}
+          {hasUnparsedPrereq(course) && <p className="verbatim">{course.prereqText}</p>}
+          {course.prereq && check.met === null && (
+            <p className="fine">Some conditions can’t be checked here. Catalog text: {course.prereqText}</p>
+          )}
+          {course.coreqText && <p className="fine">Corequisite: {course.coreqText}</p>}
         </section>
-      )}
 
-      <section>
-        <p className="desc">{course.description}</p>
-        <a className="source" href={course.url} target="_blank" rel="noreferrer">View in the Marist catalog ↗</a>
-      </section>
+        <section>
+          <h3>Counts toward</h3>
+          {counts.groups.length === 0 && counts.core.length === 0 ? (
+            <p className="muted small">Not listed in this major or the Core.</p>
+          ) : (
+            <div className="tags">
+              {counts.groups.map((g) => (
+                <span key={g} className="tag major">{g}</span>
+              ))}
+              {counts.core.map((id) => (
+                <span key={id} className="tag core">Core · {coreName(id)}</span>
+              ))}
+            </div>
+          )}
+          {counts.crossListedWarning && (
+            <p className="warn">
+              This course counts toward only one of these Core categories. Marist: “A cross-listed course can only satisfy ONE breadth requirement.”
+            </p>
+          )}
+        </section>
+
+        {opens.length > 0 && (
+          <section>
+            <h3>
+              Unlocks <span className="count">{opens.length}</span>
+            </h3>
+            <div className="req">
+              {opens.map((b) => (
+                <button key={b} className="course-chip" onClick={() => onOpen(b)} title={COURSE_BY_BASE.get(b)?.title}>
+                  {b}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <h3>About</h3>
+          <p className="desc">{course.description}</p>
+          <a className="source" href={course.url} target="_blank" rel="noreferrer">
+            View in the Marist catalog ↗
+          </a>
+        </section>
+      </div>
     </aside>
   )
 }

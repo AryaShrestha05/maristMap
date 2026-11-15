@@ -17,9 +17,14 @@ export interface GraphViewProps {
   onToggleCore: (categoryId: string) => void
   /** for the hover card: title and status line of a node */
   describe: (node: GNode) => { title: string; detail: string }
+  /** decorative background: no labels, no interaction, gentle drift */
+  ambient?: boolean
 }
 
 interface Palette {
+  root: string
+  label: string
+  halo: string
   hub: string
   taken: string
   available: string
@@ -35,6 +40,9 @@ function readPalette(): Palette {
   const s = getComputedStyle(document.documentElement)
   const v = (name: string): string => s.getPropertyValue(name).trim()
   return {
+    root: v('--node-root'),
+    label: v('--label'),
+    halo: v('--halo'),
     hub: v('--node-hub'),
     taken: v('--node-taken'),
     available: v('--node-available'),
@@ -84,6 +92,9 @@ export default function GraphView(props: GraphViewProps) {
     hover: string | null
     dirty: boolean
     fitted: boolean
+    fitZoom: number
+    /** re-fit once the layout settles, until the user pans or zooms */
+    autoFit: boolean
   } | null>(null)
   const [ready, setReady] = useState(false)
   const [card, setCard] = useState<{ id: string; x: number; y: number } | null>(null)
@@ -121,8 +132,15 @@ export default function GraphView(props: GraphViewProps) {
 
       engine.current = {
         app, viewport, edgesG, nodeLayer, labelLayer,
-        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false
+        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false, fitZoom: 1, autoFit: true
       }
+
+      const stopAutoFit = (): void => {
+        if (engine.current) engine.current.autoFit = false
+      }
+      viewport.on('drag-start', stopAutoFit)
+      viewport.on('wheel', stopAutoFit)
+      viewport.on('pinch-start', stopAutoFit)
 
       viewport.on('clicked', (e) => {
         const E = engine.current
@@ -146,17 +164,23 @@ export default function GraphView(props: GraphViewProps) {
         const E = engine.current
         if (!E) return
         const p = latest.current
+        if (E.autoFit && E.sim && E.sim.alpha() < 0.03) {
+          E.autoFit = false
+          E.fitZoom = fit(viewport, [...E.views.values()].map((v) => v.sim), el, true)
+        }
         const active = E.hover ?? p.selectedId
         const near = active ? neighborhood(p.edges, active) : null
         const zoom = viewport.scale.x
         for (const v of E.views.values()) {
           v.g.position.set(v.sim.x, v.sim.y)
           v.g.alpha = !near || near.has(v.node.id) ? 1 : 0.15
-          const show = v.node.kind === 'hub' || zoom > 1.1 || (near?.has(v.node.id) ?? false)
+          const show =
+            !p.ambient &&
+            (v.node.kind === 'hub' || zoom > E.fitZoom * 1.6 || (near?.has(v.node.id) ?? false))
           v.label.visible = show
           if (show) {
             v.label.position.set(v.sim.x, v.sim.y + v.sim.radius + 3)
-            v.label.scale.set(Math.min(1.5, Math.max(0.7, 1 / zoom)))
+            v.label.scale.set(Math.min(1.6, Math.max(0.65, 1 / zoom)))
             v.label.alpha = v.g.alpha
           }
         }
@@ -173,9 +197,10 @@ export default function GraphView(props: GraphViewProps) {
           }
           if (any) E.edgesG.stroke({ color, alpha, width })
         }
-        stroke((l) => l.kind === 'member' && lit(l), E.palette.edge, 1, w)
-        stroke((l) => l.kind === 'prereq' && lit(l), E.palette.prereq, 1, w * 1.6)
-        if (near) stroke((l) => !lit(l), E.palette.edge, 0.25, w)
+        stroke((l) => l.kind === 'member' && l.source.root === true && lit(l), E.palette.edge, 1, w * 2)
+        stroke((l) => l.kind === 'member' && !l.source.root && lit(l), E.palette.edge, 1, w)
+        stroke((l) => l.kind === 'prereq' && lit(l), E.palette.prereq, near ? 1 : 0.5, w * (near ? 2 : 1.1))
+        if (near) stroke((l) => !lit(l), E.palette.edge, 0.3, w)
       }
       app.ticker.add(tick)
       setReady(true)
@@ -218,7 +243,7 @@ export default function GraphView(props: GraphViewProps) {
       let v = E.views.get(n.id)
       if (!v) {
         const g = new Graphics()
-        g.eventMode = 'static'
+        g.eventMode = latest.current.ambient ? 'none' : 'static'
         g.cursor = 'pointer'
         g.on('pointerover', (ev) => {
           if (engine.current) engine.current.hover = n.id
@@ -230,7 +255,14 @@ export default function GraphView(props: GraphViewProps) {
         })
         const label = new Text({
           text: short(n),
-          style: { fontFamily: '-apple-system, system-ui, sans-serif', fontSize: n.kind === 'hub' ? 12 : 10, fontWeight: n.kind === 'hub' ? '700' : '500', fill: '#000' },
+          style: {
+            fontFamily: n.kind === 'hub' ? 'Geist, -apple-system, system-ui, sans-serif' : 'Geist Mono, ui-monospace, monospace',
+            fontSize: n.root ? 15 : n.kind === 'hub' ? 12 : 10,
+            fontWeight: n.root ? '800' : n.kind === 'hub' ? '600' : '500',
+            fill: '#000',
+            stroke: { color: '#fff', width: 4, join: 'round' },
+            letterSpacing: n.kind === 'hub' ? -0.2 : 0
+          },
           resolution: 3
         })
         label.anchor.set(0.5, 0)
@@ -248,6 +280,7 @@ export default function GraphView(props: GraphViewProps) {
     E.dirty = true
 
     const isNew = previous.size === 0
+    E.autoFit = true
     if (isNew) {
       for (let i = 0; i < 300; i++) sim.tick()
     } else {
@@ -256,7 +289,7 @@ export default function GraphView(props: GraphViewProps) {
     sim.alphaTarget(0.004).restart()
 
     if (!E.fitted || isNew) {
-      fit(E.viewport, simNodes, hostRef.current!)
+      E.fitZoom = fit(E.viewport, simNodes, hostRef.current!)
       E.fitted = true
     }
   }, [ready, nodes, edges])
@@ -266,7 +299,7 @@ export default function GraphView(props: GraphViewProps) {
     const E = engine.current
     if (!ready || !E) return
     E.palette = readPalette()
-    for (const v of E.views.values()) drawNode(v, E.palette, v.node.id === selectedId)
+    for (const v of E.views.values()) drawNode(v, E.palette, v.node.id === selectedId, !!props.ambient)
   }, [ready, nodes, theme, selectedId])
 
   // ---- focus ----
@@ -295,31 +328,42 @@ export default function GraphView(props: GraphViewProps) {
   )
 }
 
-function drawNode(v: View, p: Palette, selected: boolean): void {
+function drawNode(v: View, p: Palette, selected: boolean, ambient: boolean): void {
   const { g, node, sim, label } = v
   g.clear()
   const r = sim.radius
-  if (node.kind === 'hub') {
+  if (ambient) {
+    if (node.kind === 'hub') g.circle(0, 0, r * 0.8).fill({ color: p.root, alpha: 0.55 })
+    else g.circle(0, 0, r * 0.75).fill({ color: p.root, alpha: 0.35 })
+    return
+  }
+  if (node.root) {
+    g.circle(0, 0, r + 6).fill({ color: p.root, alpha: 0.14 })
+    g.circle(0, 0, r).fill({ color: p.root })
+  } else if (node.kind === 'hub' && node.core) {
+    if (node.satisfied) g.circle(0, 0, r).fill({ color: p.taken })
+    else g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.hub, width: 2.4 })
+  } else if (node.kind === 'hub') {
     g.circle(0, 0, r).fill({ color: p.hub })
-    if (node.core) g.circle(0, 0, r + 4).stroke({ color: node.satisfied ? p.taken : p.locked, width: 3 })
   } else if (node.missing) {
     g.circle(0, 0, r).stroke({ color: p.locked, width: 1.5, alpha: 0.8 })
   } else if (node.status === 'taken') {
     g.circle(0, 0, r).fill({ color: p.taken })
-  } else if (node.status === 'check') {
-    g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.locked, width: 2.2 })
   } else if (node.status === 'available') {
     g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.available, width: 2.2 })
+  } else if (node.status === 'check') {
+    g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.locked, width: 2.2 })
   } else {
     g.circle(0, 0, r).fill({ color: p.locked })
   }
-  if (node.inCart) g.circle(0, 0, r + 4).stroke({ color: p.accent, width: 1.5, alpha: 0.9 })
-  if (selected) g.circle(0, 0, r + 7).stroke({ color: p.fg, width: 2 })
-  label.style.fill = p.fg
+  if (node.inCart) g.circle(0, 0, r + 4).stroke({ color: p.label, width: 1.6, alpha: 0.9 })
+  if (selected) g.circle(0, 0, r + 7).stroke({ color: p.label, width: 2 })
+  label.style.fill = node.root ? p.root : p.label
+  label.style.stroke = { color: p.halo, width: 4, join: 'round' }
 }
 
-function fit(viewport: Viewport, nodes: SimNode[], el: HTMLDivElement): void {
-  if (!nodes.length) return
+function fit(viewport: Viewport, nodes: SimNode[], el: HTMLDivElement, animate = false): number {
+  if (!nodes.length) return 1
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const n of nodes) {
     minX = Math.min(minX, n.x); minY = Math.min(minY, n.y)
@@ -327,6 +371,15 @@ function fit(viewport: Viewport, nodes: SimNode[], el: HTMLDivElement): void {
   }
   const w = Math.max(maxX - minX, 200)
   const h = Math.max(maxY - minY, 200)
-  viewport.setZoom(Math.min(el.clientWidth / w, el.clientHeight / h) * 0.85, true)
-  viewport.moveCenter((minX + maxX) / 2, (minY + maxY) / 2)
+  // leave room for the legend (top) and hint (bottom)
+  const zoom = Math.min(el.clientWidth / (w + 80), (el.clientHeight - 110) / (h + 60))
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  if (animate) {
+    viewport.animate({ position: { x: cx, y: cy - 10 / zoom }, scale: zoom, time: 600, ease: 'easeInOutSine' })
+  } else {
+    viewport.setZoom(zoom, true)
+    viewport.moveCenter(cx, cy - 10 / zoom)
+  }
+  return zoom
 }

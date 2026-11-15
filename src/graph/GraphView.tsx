@@ -183,6 +183,16 @@ export default function GraphView(props: GraphViewProps) {
         engine.current.userMoved = true
       }
       viewport.on('drag-start', stopAutoFit)
+      // open hand over the map, closed (pinching) hand while dragging it
+      const cursors = app.renderer.events.cursorStyles
+      cursors.default = 'grab'
+      const grabbing = (on: boolean): void => {
+        cursors.default = on ? 'grabbing' : 'grab'
+        cursors.pointer = on ? 'grabbing' : 'pointer'
+        app.canvas.style.cursor = on ? 'grabbing' : 'grab'
+      }
+      viewport.on('drag-start', () => grabbing(true))
+      viewport.on('drag-end', () => grabbing(false))
       viewport.on('wheel', stopAutoFit)
       viewport.on('pinch-start', stopAutoFit)
 

@@ -47,6 +47,9 @@ function readPalette(): Palette {
   }
 }
 
+/** Long requirement names are shortened on the map; the hover card shows them in full. */
+const short = (n: GNode): string => (n.kind === 'hub' && n.label.length > 34 ? n.label.slice(0, 32).trimEnd() + '…' : n.label)
+
 interface View {
   node: GNode
   sim: SimNode
@@ -226,7 +229,7 @@ export default function GraphView(props: GraphViewProps) {
           setCard((c) => (c?.id === n.id ? null : c))
         })
         const label = new Text({
-          text: n.label,
+          text: short(n),
           style: { fontFamily: '-apple-system, system-ui, sans-serif', fontSize: n.kind === 'hub' ? 12 : 10, fontWeight: n.kind === 'hub' ? '700' : '500', fill: '#000' },
           resolution: 3
         })
@@ -238,7 +241,7 @@ export default function GraphView(props: GraphViewProps) {
       }
       v.node = n
       v.sim = s
-      v.label.text = n.label
+      v.label.text = short(n)
     }
     E.links = simLinks
     E.sim = sim

@@ -159,3 +159,19 @@ describe('parsePrograms — alternatives and naming', () => {
     expect(majors.map((m) => m.name)).toEqual(['Finance'])
   })
 })
+
+describe('parsePrograms — concentration names', () => {
+  const named = (heading: string) =>
+    parsePrograms(
+      [{ poid: '9', name: 'Business Administration, B.S.', url: 'u', items: [
+        { type: 'heading', level: 2, text: heading },
+        { type: 'course', text: 'CMPT 120L - x', coid: '1' }
+      ] }],
+      byCoid
+    )[0]?.concentration
+  test('trailing credit counts, instructions and the words Track/Concentration are removed', () => {
+    expect(named('Corporate Finance Track (9 Credits)')).toBe('Corporate Finance')
+    expect(named('Information Technology Concentration (20-23 credits)')).toBe('Information Technology')
+    expect(named('Concentration in Animation (select 5)')).toBe('Animation')
+  })
+})

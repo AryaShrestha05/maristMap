@@ -86,7 +86,9 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
       if (item.type === 'heading') {
         if (CONCENTRATION_RE.test(item.text)) {
           concentration = splitTitle(item.text)
-            .title.replace(/^(concentration|track)\s+(in|:)?\s*/i, '')
+            .title.replace(/\s*\([^)]*\)\s*$/, '') // "(9 credits)", "(select 5)"
+            .replace(/^\d+(\.\d+)*\s+/, '') // "1.2 "
+            .replace(/^(concentration|track)\s+(in|:)?\s*/i, '')
             .replace(/\s+(concentration|track)$/i, '')
             .trim()
           concentrationLevel = item.level

@@ -69,3 +69,12 @@ describe('parseCourse', () => {
     expect(parseCourse(raw('MUS 399 - Special Topics', 'MUS 399 - Special Topics1-3 Credit(s) Liberal ArtsVaries.')).credits).toBe('1-3')
   })
 })
+
+describe('parseCourse — catalog whitespace', () => {
+  test('non-breaking spaces around the dash (as the catalog sends them)', () => {
+    const name = 'CMPT 120L - Introduction to Programming'
+    const c = parseCourse({ coid: '1', name, url: '', block: name + '4 Credit(s) Liberal ArtsLearn to program.' })
+    expect(c).toMatchObject({ code: 'CMPT 120L', base: 'CMPT 120', title: 'Introduction to Programming', credits: '4', liberalArts: true })
+    expect(c.description).toBe('Learn to program.')
+  })
+})

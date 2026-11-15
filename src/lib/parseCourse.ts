@@ -135,7 +135,10 @@ const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const LABEL_RE = new RegExp(`(${LABELS.map(escape).join('|')}):\\s*`, 'g')
 
 /** Splits a course block (all text run together) into its parts. Title comes from the link name, which is clean. */
-export function parseCourse(raw: RawCourse): Course {
+export function parseCourse(input: RawCourse): Course {
+  // the catalog uses non-breaking spaces (e.g. around the " - " between code and title)
+  const norm = (s: string): string => s.replace(/\u00a0/g, ' ')
+  const raw = { ...input, name: norm(input.name), block: norm(input.block) }
   const dash = raw.name.indexOf(' - ')
   const code = (dash > 0 ? raw.name.slice(0, dash) : raw.name).trim()
   const title = dash > 0 ? raw.name.slice(dash + 3).trim() : ''

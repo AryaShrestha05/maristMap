@@ -96,6 +96,8 @@ export default function MajorPicker({
                 e.preventDefault()
                 if (results[active]) pick(results[active].id)
               } else if (e.key === 'Escape') {
+                // close only the picker, not the course panel behind it
+                e.nativeEvent.stopImmediatePropagation()
                 setOpen(false)
               }
             }}

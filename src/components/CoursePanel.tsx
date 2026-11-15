@@ -46,6 +46,8 @@ function PrereqTree({ p, taken, onOpen }: { p: Prereq; taken: Set<string>; onOpe
   )
 }
 
+const GRADE_RE = /\bgrade\b|\bGPA\b|\bminimum of [A-D][+-]?/i
+
 export default function CoursePanel({ base, major, taken, cart, onToggleTaken, onToggleCart, onOpen, onClose }: Props) {
   const course = COURSE_BY_BASE.get(base)
   if (!course) {
@@ -106,6 +108,9 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
           {hasUnparsedPrereq(course) && <p className="verbatim">{course.prereqText}</p>}
           {course.prereq && check.met === null && (
             <p className="fine">Some conditions can’t be checked here. Catalog text: {course.prereqText}</p>
+          )}
+          {course.prereq && check.met !== null && course.prereqText && GRADE_RE.test(course.prereqText) && (
+            <p className="fine">Also requires a minimum grade or GPA: {course.prereqText}</p>
           )}
           {course.coreqText && <p className="fine">Corequisite: {course.coreqText}</p>}
         </section>

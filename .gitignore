@@ -1,11 +1,29 @@
 # Dependencies and build output
 node_modules/
 dist/
-.DS_Store
+coverage/
+*.tsbuildinfo
 *.log
+.DS_Store
 
-# Claude / Superpowers tooling
+# Local environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Editors
+.vscode/
+.idea/
+
+# Claude / Superpowers / agent tooling
 .superpowers/
 docs/superpowers/
 .claude/
 CLAUDE.local.md
+.mcp.json
+
+# AppMap recordings and tooling
+appmap.yml
+tmp/
+gold_traces/

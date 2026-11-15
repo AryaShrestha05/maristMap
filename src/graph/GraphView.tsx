@@ -411,7 +411,7 @@ function drawNode(v: View, p: Palette, selected: boolean): void {
     if (node.satisfied) g.circle(0, 0, r).fill({ color: p.taken })
     else g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.hub, width: 2.4 })
   } else if (node.kind === 'hub') {
-    g.circle(0, 0, r).fill({ color: p.hub })
+    g.circle(0, 0, r).fill({ color: node.satisfied ? p.taken : p.hub })
   } else if (node.missing) {
     g.circle(0, 0, r).stroke({ color: p.locked, width: 1.5, alpha: 0.8 })
   } else if (node.status === 'taken') {

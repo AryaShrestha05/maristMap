@@ -5,7 +5,7 @@ import GridView from './components/GridView'
 import Sidebar from './components/Sidebar'
 import MajorPicker from './components/MajorPicker'
 import CursorGrid from './components/CursorGrid'
-import { pathTo } from './lib/plan'
+import { groupProgress, pathTo } from './lib/plan'
 import GraphView from './graph/GraphView'
 import { buildGraph, type GNode } from './graph/buildGraph'
 import { COURSE_BY_BASE, COURSES, MAJOR_BY_ID, MAJORS } from './data'
@@ -112,7 +112,9 @@ export default function App() {
           ? n.satisfied
             ? 'Satisfied · click to show approved courses'
             : 'Not satisfied yet · click to show approved courses'
-          : 'Requirement'
+          : n.progress
+            ? `${n.satisfied ? 'Satisfied · ' : ''}${n.progress.done} of ${n.progress.needed} ${n.progress.unit}`
+            : 'Requirement'
       }
     }
     const c = COURSE_BY_BASE.get(n.id)
@@ -278,6 +280,10 @@ export default function App() {
             })
           }
           canTakeNow={canTakeNow}
+          majorProgress={{
+            done: major.groups.filter((g) => groupProgress(g, taken, COURSE_BY_BASE).satisfied).length,
+            total: major.groups.length
+          }}
           onUnmarkAll={() => update({ taken: [] })}
           onClearCart={() => update({ cart: [] })}
         />

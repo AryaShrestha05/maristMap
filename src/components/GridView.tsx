@@ -33,14 +33,23 @@ export default function GridView({
       {hubs.map((h) => {
         const list = members(h.id)
         const done = list.filter((n) => n.status === 'taken').length
+        const p = h.progress
+        const countText = p
+          ? p.unit === 'credits'
+            ? `${p.done} of ${p.needed} cr`
+            : p.needed < list.length
+              ? `${p.done} of ${p.needed} needed · choose from ${list.length}`
+              : `${p.done} of ${p.needed} taken`
+          : `${done} of ${list.length} taken`
         return (
           <section key={h.id} className="grid-section">
             <h3>
-              <span className={`group-dot ${h.core ? 'core' : ''} ${h.satisfied ? 'done' : ''}`} aria-hidden="true" />
+              <span className={`group-dot ${h.core || h.progress ? 'core' : ''} ${h.satisfied ? 'done' : ''}`} aria-hidden="true" />
               {h.label}
               {list.length > 0 && (
                 <span className="count">
-                  {done} of {list.length} taken
+                  {h.satisfied && !h.core ? '✓ ' : ''}
+                  {countText}
                 </span>
               )}
               {h.core && (

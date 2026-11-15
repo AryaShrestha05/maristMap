@@ -1,5 +1,5 @@
 import { CORE, categoriesFor } from '../data/core'
-import { coreProgress, status, type Status } from '../lib/plan'
+import { coreProgress, groupProgress, status, type Status } from '../lib/plan'
 import type { Course, Major, Prereq } from '../lib/types'
 
 export type GroupBy = 'requirements' | 'departments'
@@ -17,6 +17,8 @@ export interface GNode {
   core?: boolean
   /** the Major and Core root hubs that tie their sections together */
   root?: boolean
+  /** major section hubs: progress toward the section's rule */
+  progress?: { done: number; needed: number; unit: 'courses' | 'credits' }
   satisfied?: boolean
 }
 
@@ -77,7 +79,14 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore,
     nodes.set('root:major', { id: 'root:major', kind: 'hub', root: true, label: major.name })
     nodes.set('root:core', { id: 'root:core', kind: 'hub', root: true, label: 'Core requirements' })
     major.groups.forEach((g, i) => {
-      nodes.set(`group:${i}`, { id: `group:${i}`, kind: 'hub', label: g.title })
+      const p = groupProgress(g, taken, courses)
+      nodes.set(`group:${i}`, {
+        id: `group:${i}`,
+        kind: 'hub',
+        label: g.title,
+        satisfied: p.satisfied,
+        progress: { done: p.done, needed: p.needed, unit: p.unit }
+      })
       edges.push({ source: 'root:major', target: `group:${i}`, kind: 'member' })
     })
     const progress = new Map(coreProgress(taken, courses).map((p) => [p.categoryId, p.satisfiedBy]))

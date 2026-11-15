@@ -113,3 +113,13 @@ describe('buildGraph — extra courses (a path being shown)', () => {
     expect(g.edges).toContainEqual({ source: 'CMPT 220', target: 'CMPT 221', kind: 'prereq' })
   })
 })
+
+describe('buildGraph — section progress', () => {
+  test('a section hub is satisfied once its rule is met, and carries its progress', () => {
+    const m: Major = { ...major, groups: [{ title: 'Pick one', credits: null, courses: ['CMPT 120', 'MATH 205'], notes: [], pick: { count: 1 } }] }
+    const before = buildGraph({ major: m, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+    expect(before.nodes.find((n) => n.id === 'group:0')).toMatchObject({ satisfied: false, progress: { done: 0, needed: 1, unit: 'courses' } })
+    const after = buildGraph({ major: m, courses, taken: new Set(['MATH 205']), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+    expect(after.nodes.find((n) => n.id === 'group:0')).toMatchObject({ satisfied: true })
+  })
+})

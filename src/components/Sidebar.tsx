@@ -12,7 +12,8 @@ export default function Sidebar({
   onMarkTaken,
   canTakeNow,
   onUnmarkAll,
-  onClearCart
+  onClearCart,
+  majorProgress
 }: {
   taken: Set<string>
   cart: string[]
@@ -23,6 +24,8 @@ export default function Sidebar({
   canTakeNow: string[]
   onUnmarkAll: () => void
   onClearCart: () => void
+  /** sections of the major whose rule is met, out of all sections */
+  majorProgress: { done: number; total: number }
 }) {
   const [confirming, setConfirming] = useState(false)
   const takenCredits = [...taken].reduce((n, b) => n + (Number.parseFloat(COURSE_BY_BASE.get(b)?.credits ?? '') || 0), 0)
@@ -119,6 +122,19 @@ export default function Sidebar({
             {canTakeNow.length > 12 && <li className="fine">+{canTakeNow.length - 12} more on the map</li>}
           </ul>
         )}
+      </section>
+
+      <section className="side-section">
+        <h3>
+          Major requirements{' '}
+          <span className="count">
+            {majorProgress.done} of {majorProgress.total} sections
+          </span>
+        </h3>
+        <div className="progress" role="progressbar" aria-label="Major requirements" aria-valuemin={0} aria-valuemax={majorProgress.total} aria-valuenow={majorProgress.done}>
+          <div style={{ width: `${majorProgress.total ? (majorProgress.done / majorProgress.total) * 100 : 0}%` }} />
+        </div>
+        <p className="fine">Each section counts when its rule is met, e.g. “choose one” or “12 credits”.</p>
       </section>
 
       <section className="side-section">

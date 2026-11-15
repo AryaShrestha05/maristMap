@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Application, Container, Graphics, Text } from 'pixi.js'
+import { Application, Container, Graphics, Text, Ticker } from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 import type { Simulation } from 'd3-force'
 import type { GEdge, GNode } from './buildGraph'
@@ -108,6 +108,11 @@ export default function GraphView(props: GraphViewProps) {
     structureKey: string
     /** re-fit once the layout settles, until the user pans or zooms */
     autoFit: boolean
+    /** the user has panned or zoomed since the last re-frame: resizing keeps their view */
+    userMoved: boolean
+    /** last time anything moved or changed; the ticker sleeps after a quiet second */
+    activeAt: number
+    wake: () => void
   } | null>(null)
   const [ready, setReady] = useState(false)
   const [card, setCard] = useState<{ id: string; x: number; y: number } | null>(null)
@@ -137,19 +142,33 @@ export default function GraphView(props: GraphViewProps) {
       const nodeLayer = new Container()
       const labelLayer = new Container()
       viewport.addChild(edgesG, nodeLayer, labelLayer)
+      const wake = (): void => {
+        if (!engine.current) return
+        engine.current.activeAt = performance.now()
+        if (!app.ticker.started) app.ticker.start()
+        if (!Ticker.system.started) Ticker.system.start()
+      }
       const ro = new ResizeObserver(() => {
         app.resize()
         viewport.resize(el.clientWidth, el.clientHeight)
+        const E = engine.current
+        if (E && E.fitted && !E.userMoved) E.fitZoom = fit(viewport, [...E.views.values()].map((v) => v.sim), el)
+        wake()
       })
       ro.observe(el)
 
       engine.current = {
         app, viewport, edgesG, nodeLayer, labelLayer,
-        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false, fitZoom: 1, structureKey: '', autoFit: true
+        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false, fitZoom: 1, structureKey: '', autoFit: true,
+        userMoved: false, activeAt: performance.now(), wake
       }
+      for (const type of ['pointermove', 'pointerdown', 'wheel'] as const) el.addEventListener(type, wake, { passive: true })
+      viewport.on('moved', wake)
 
       const stopAutoFit = (): void => {
-        if (engine.current) engine.current.autoFit = false
+        if (!engine.current) return
+        engine.current.autoFit = false
+        engine.current.userMoved = true
       }
       viewport.on('drag-start', stopAutoFit)
       viewport.on('wheel', stopAutoFit)
@@ -177,6 +196,12 @@ export default function GraphView(props: GraphViewProps) {
         const E = engine.current
         if (!E) return
         const p = latest.current
+        // nothing settling, moving or changing for a second: stop drawing until the next input
+        if (E.sim && E.sim.alpha() < E.sim.alphaMin() && performance.now() - E.activeAt > 1000) {
+          app.ticker.stop()
+          Ticker.system.stop() // Pixi's pointer-over checks; restarted by wake()
+          return
+        }
         if (E.autoFit && E.sim && E.sim.alpha() < 0.03) {
           E.autoFit = false
           E.fitZoom = fit(viewport, [...E.views.values()].map((v) => v.sim), el, true)
@@ -223,7 +248,9 @@ export default function GraphView(props: GraphViewProps) {
 
       teardown = () => {
         app.ticker.remove(tick)
+        Ticker.system.start()
         ro.disconnect()
+        for (const type of ['pointermove', 'pointerdown', 'wheel'] as const) el.removeEventListener(type, wake)
         engine.current?.sim?.stop()
         viewport.destroy({ children: true })
         app.destroy(true, { children: true })
@@ -313,6 +340,7 @@ export default function GraphView(props: GraphViewProps) {
     // a big change (new major, regrouping) re-frames the map; a few added path courses don't
     const bigChange = isNew || changed > nodes.length * 0.3
     E.autoFit = bigChange
+    if (bigChange) E.userMoved = false
     if (isNew) {
       for (let i = 0; i < 300; i++) sim.tick()
     } else {
@@ -328,7 +356,7 @@ export default function GraphView(props: GraphViewProps) {
       }
       sim.alpha(bigChange ? 0.5 : 0.15)
     }
-    sim.alphaTarget(0.004).restart()
+    sim.alphaTarget(0).restart()
 
     if (!E.fitted || isNew) {
       E.fitZoom = fit(E.viewport, simNodes, hostRef.current!)
@@ -356,10 +384,18 @@ export default function GraphView(props: GraphViewProps) {
     return () => cancelAnimationFrame(raf)
   }, [ready, focusId])
 
+  // any change in what's shown (selection, path, theme, data) needs a few frames drawn
+  useEffect(() => engine.current?.wake())
+
   const cardNode = card ? nodes.find((n) => n.id === card.id) : null
   const cardText = cardNode ? props.describe(cardNode) : null
   return (
-    <div className="graph-host" ref={hostRef}>
+    <div
+      className="graph-host"
+      ref={hostRef}
+      role="img"
+      aria-label={`Course map with ${nodes.filter((n) => n.kind === 'course').length} courses. Grid view lists the same courses as buttons.`}
+    >
       {cardNode && cardText && card && (
         <div className="hover-card" style={{ left: card.x + 14, top: card.y + 14 }}>
           <div className="hover-title">{cardText.title}</div>

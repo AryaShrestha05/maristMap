@@ -68,9 +68,11 @@ function parseTokens(tokens: Token[]): Prereq {
     throw new Ambiguous()
   }
 
+  type Sep = 'and' | 'or' | 'comma' | 'comma-and' | 'comma-or'
+
   function expr(): Prereq {
     const parts = [operand()]
-    const ops = new Set<'and' | 'or'>()
+    const seps: Sep[] = []
     for (;;) {
       const tok = peek()
       if (!tok || tok.t === ')') break
@@ -78,20 +80,64 @@ function parseTokens(tokens: Token[]): Prereq {
         i++
         const next = peek()
         if (next?.t === 'and' || next?.t === 'or') {
-          ops.add(next.t)
+          seps.push(next.t === 'and' ? 'comma-and' : 'comma-or')
           i++
-        }
+        } else seps.push('comma')
       } else if (tok.t === 'and' || tok.t === 'or') {
-        ops.add(tok.t)
+        seps.push(tok.t)
         i++
       } else {
         throw new Ambiguous() // two operands with nothing joining them
       }
       parts.push(operand())
     }
-    if (ops.size > 1) throw new Ambiguous() // "A or B and C" without parentheses
     if (parts.length === 1) return parts[0]
-    return { kind: ops.has('or') ? 'any' : 'all', of: parts }
+
+    const join = (kind: 'and' | 'or', of: Prereq[]): Prereq => {
+      const k = kind === 'or' ? 'any' : 'all'
+      // flatten nested groups of the same kind
+      const flat = of.flatMap((x) => (x.kind === k ? (x as { of: Prereq[] }).of : [x]))
+      return flat.length === 1 ? flat[0] : { kind: k, of: flat }
+    }
+
+    const hasComma = seps.some((x) => x.startsWith('comma'))
+    if (!hasComma) {
+      const ops = new Set(seps)
+      if (ops.size > 1) throw new Ambiguous() // "A or B and C" without parentheses
+      return join(seps[0] as 'and' | 'or', parts)
+    }
+
+    const isAnd = (x: Sep): boolean => x === 'and' || x === 'comma-and'
+    const isOr = (x: Sep): boolean => x === 'or' || x === 'comma-or'
+    // plain lists: "A, B, and C" / "A, B, or C" / "A, B or C"
+    if (!seps.some(isOr)) return join('and', parts)
+    // "A or B or C, or D": no "and", and no item comma once the choices start
+    const firstOr = seps.findIndex(isOr)
+    if (!seps.some(isAnd) && isOr(seps[seps.length - 1]) && !seps.slice(firstOr).includes('comma')) {
+      return join('or', parts)
+    }
+
+    // Catalog list style: "A, B or C, D and E" = all of the comma-separated items, where an item
+    // may itself be an "or" choice. Only safe when the list as a whole is joined by "and".
+    if (seps.includes('comma-or')) throw new Ambiguous()
+    const segments: { parts: Prereq[]; seps: ('and' | 'or')[] }[] = [{ parts: [parts[0]], seps: [] }]
+    seps.forEach((sep, k) => {
+      if (sep === 'comma' || sep === 'comma-and') segments.push({ parts: [parts[k + 1]], seps: [] })
+      else {
+        const seg = segments[segments.length - 1]
+        seg.seps.push(sep)
+        seg.parts.push(parts[k + 1])
+      }
+    })
+    const last = segments[segments.length - 1]
+    if (last.seps.includes('or')) throw new Ambiguous() // "A, B or C" could be a list of alternatives
+    return join(
+      'and',
+      segments.map((seg) => {
+        if (new Set(seg.seps).size > 1) throw new Ambiguous()
+        return seg.parts.length === 1 ? seg.parts[0] : join(seg.seps[0], seg.parts)
+      })
+    )
   }
 
   const result = expr()

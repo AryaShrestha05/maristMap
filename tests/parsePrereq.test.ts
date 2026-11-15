@@ -66,3 +66,45 @@ describe('parsePrereq', () => {
     expect(parsePrereq('None')).toBeNull()
   })
 })
+
+describe('parsePrereq — catalog comma lists', () => {
+  test('items separated by commas, one item an "or" choice, list ending in "and"', () => {
+    expect(parsePrereq('ACCT 203N , MATH 130L or MATH 330L , ECON 103L and ECON 104L')).toEqual({
+      kind: 'all',
+      of: [c('ACCT 203'), { kind: 'any', of: [c('MATH 130'), c('MATH 330')] }, c('ECON 103'), c('ECON 104')]
+    })
+  })
+
+  test('a comma list ending in "or" stays ambiguous', () => {
+    expect(parsePrereq('ACCT 203N, MATH 130L and MATH 330L, or ECON 103L')).toBeNull()
+  })
+})
+
+describe('parsePrereq — plain lists', () => {
+  test('"A, B, or C" and "A, B or C" mean any one of them', () => {
+    const any3 = { kind: 'any', of: [c('MATH 130'), c('MATH 241'), c('MATH 330')] }
+    expect(parsePrereq('MATH 130L, MATH 241L, or MATH 330L')).toEqual(any3)
+    expect(parsePrereq('MATH 130L, MATH 241L or MATH 330L')).toEqual(any3)
+  })
+})
+
+describe('parsePrereq — real catalog lists', () => {
+  test('ENG 310: "A or B or C, or permission of instructor" is any one of them', () => {
+    expect(parsePrereq('ENG 150L  or ENG 222L  or ENG 280L , or permission of instructor')).toEqual({
+      kind: 'any',
+      of: [c('ENG 150'), c('ENG 222'), c('ENG 280'), { kind: 'text', text: 'permission of instructor' }]
+    })
+  })
+
+  test('BUS 440: "A or B, C" is (A or B) and C', () => {
+    expect(parsePrereq('BUS 100L  or ACCT 204N , BUS 340N')).toEqual({
+      kind: 'all',
+      of: [{ kind: 'any', of: [c('BUS 100'), c('ACCT 204')] }, c('BUS 340')]
+    })
+  })
+
+  test('BUS 423: a list mixing course choices and standing is never read as "any one"', () => {
+    const p = parsePrereq('BUS 100L  or ACCT 204N , BUS 320N , Junior or Senior standing')
+    expect(p === null || p.kind !== 'any').toBe(true)
+  })
+})

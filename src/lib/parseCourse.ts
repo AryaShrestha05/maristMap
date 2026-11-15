@@ -151,8 +151,20 @@ function parseTokens(tokens: Token[]): Prereq {
  * or when the wording can't be structured without guessing (the UI then shows the text verbatim).
  */
 export function parsePrereq(text: string): Prereq | null {
-  let s = text.trim().replace(/\.$/, '').trim()
-  if (!s || /^none$/i.test(s)) return null
+  let s = text
+    .trim()
+    .replace(/\s*&\s*/g, ' and ')
+    .replace(/[\s.,;]+$/, '')
+    .trim()
+  if (!s || /^(none|n\/a)$/i.test(s)) return null
+  // semicolons separate requirements that all apply ("ART 112N; ART 213N", "Senior status; ACCT 302N")
+  if (s.includes(';')) {
+    const parts = s.split(';').map((x) => x.trim()).filter(Boolean)
+    const parsed = parts.map((x) => parsePrereq(x))
+    if (parsed.some((x) => x === null)) return null
+    const of = (parsed as Prereq[]).flatMap((x) => (x.kind === 'all' ? x.of : [x]))
+    return of.length === 1 ? of[0] : { kind: 'all', of }
+  }
   for (const re of GRADE_PHRASES) s = s.replace(re, '')
   if (!CODE_RE.test(s)) return { kind: 'text', text: s.trim() }
   try {
@@ -216,7 +228,8 @@ export function parseCourse(input: RawCourse): Course {
     if (value) fields[mk.label] = value
   })
 
-  const prereqText = fields['Prerequisite(s)'] ?? null
+  const rawPrereq = fields['Prerequisite(s)'] ?? null
+  const prereqText = rawPrereq && !/^\s*(none|n\/a)\.?\s*$/i.test(rawPrereq) ? rawPrereq : null
   return {
     code,
     base,

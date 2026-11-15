@@ -78,3 +78,11 @@ describe('parseCourse — catalog whitespace', () => {
     expect(c.description).toBe('Learn to program.')
   })
 })
+
+describe('parseCourse — "None"', () => {
+  test('a prerequisite of "None" means no prerequisite', () => {
+    const c = parseCourse({ coid: '1', name: 'ART 101L - Fundamentals', url: '', block: 'ART 101L - Fundamentals3 Credit(s) Liberal ArtsArt.Prerequisite(s): None' })
+    expect(c.prereqText).toBeNull()
+    expect(c.prereq).toBeNull()
+  })
+})

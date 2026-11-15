@@ -108,3 +108,25 @@ describe('parsePrereq — real catalog lists', () => {
     expect(p === null || p.kind !== 'any').toBe(true)
   })
 })
+
+describe('parsePrereq — more catalog styles', () => {
+  test('semicolons separate requirements that all apply', () => {
+    expect(parsePrereq('ART 112N ; ART 213N')).toEqual({ kind: 'all', of: [c('ART 112'), c('ART 213')] })
+    expect(parsePrereq('Senior status; ACCT 302N , ACCT 403N')).toEqual({
+      kind: 'all',
+      of: [{ kind: 'text', text: 'Senior status' }, c('ACCT 302'), c('ACCT 403')]
+    })
+  })
+
+  test('"&" means and', () => {
+    expect(parsePrereq('BIOL 201L  & BIOL 202L')).toEqual({ kind: 'all', of: [c('BIOL 201'), c('BIOL 202')] })
+  })
+
+  test('a trailing comma is ignored', () => {
+    expect(parsePrereq('ART 231L ,')).toEqual(c('ART 231'))
+  })
+
+  test('a semicolon list whose parts are ambiguous stays ambiguous', () => {
+    expect(parsePrereq('CMPT 220L or CMPT 221L and MATH 205L; ART 112N')).toBeNull()
+  })
+})

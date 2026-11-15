@@ -135,3 +135,59 @@ export function countsToward(
   const breadth = core.filter((id) => CORE.find((c) => c.id === id)?.group === 'Breadth')
   return { groups, core, crossListedWarning: breadth.length > 1 }
 }
+
+export type PathStep =
+  | { kind: 'course'; code: string }
+  /** take one of `options` (or meet one of the non-course `alternatives`) */
+  | { kind: 'choice'; options: string[]; alternatives: string[] }
+  /** prerequisite text we can't structure, shown as the catalog wrote it */
+  | { kind: 'condition'; text: string; forCourse: string }
+
+/**
+ * Everything still standing between the student and `target`, prerequisites before the courses
+ * that need them. Choices ("A or B") stay choices: the app doesn't pick for the student.
+ */
+export function pathTo(target: string, taken: Set<string>, courses: Map<string, Course>): PathStep[] {
+  const steps: PathStep[] = []
+  const seen = new Set<string>()
+  const add = (key: string, step: PathStep): void => {
+    if (seen.has(key)) return
+    seen.add(key)
+    steps.push(step)
+  }
+
+  const needCourse = (code: string, visiting: Set<string>): void => {
+    if (taken.has(code) || visiting.has(code) || seen.has(code)) return
+    visiting.add(code)
+    needPrereqsOf(code, visiting)
+    visiting.delete(code)
+    add(code, { kind: 'course', code })
+  }
+
+  const needPrereqsOf = (code: string, visiting: Set<string>): void => {
+    const course = courses.get(code)
+    if (!course) return
+    if (hasUnparsedPrereq(course)) {
+      add(`cond:${code}`, { kind: 'condition', text: course.prereqText!, forCourse: code })
+      return
+    }
+    walk(course.prereq, visiting)
+  }
+
+  const walk = (p: Prereq | null, visiting: Set<string>): void => {
+    if (!p || prereqCheck(p, taken).met === true) return
+    if (p.kind === 'course') needCourse(p.code, visiting)
+    else if (p.kind === 'all') p.of.forEach((x) => walk(x, visiting))
+    else if (p.kind === 'any') {
+      const options = p.of.filter((x): x is { kind: 'course'; code: string } => x.kind === 'course').map((x) => x.code)
+      const alternatives = p.of.filter((x): x is { kind: 'text'; text: string } => x.kind === 'text').map((x) => x.text)
+      add(`choice:${options.join('|')}|${alternatives.join('|')}`, { kind: 'choice', options, alternatives })
+    }
+    // a lone text condition (e.g. "Junior standing") is shown with the course itself, not as a step
+  }
+
+  const t = courses.get(target)
+  if (!t) return []
+  needPrereqsOf(target, new Set([target]))
+  return steps
+}

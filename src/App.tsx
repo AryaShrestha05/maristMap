@@ -374,12 +374,6 @@ export default function App() {
             />
           )}
           {s.view === 'graph' && legend}
-          {s.view === 'graph' && (
-            <p className="stage-hint">
-              Hover a course to see its prerequisites · click it for details and its path · click a Core circle to see approved
-              courses
-            </p>
-          )}
         </main>
         {selected && (
           <CoursePanel

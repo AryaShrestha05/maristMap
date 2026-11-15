@@ -14,7 +14,8 @@ export default function Sidebar({
   canTakeNow,
   onUnmarkAll,
   onClearCart,
-  majorProgress
+  majorProgress,
+  shareUrl
 }: {
   /** narrow screens: the sidebar is a drawer */
   open?: boolean
@@ -29,8 +30,11 @@ export default function Sidebar({
   onClearCart: () => void
   /** sections of the major whose rule is met, out of all sections */
   majorProgress: { done: number; total: number }
+  /** link that opens this plan (major, taken, cart) in another browser */
+  shareUrl: string
 }) {
   const [confirming, setConfirming] = useState(false)
+  const [copied, setCopied] = useState<'yes' | 'failed' | null>(null)
   const takenCredits = [...taken].reduce((n, b) => n + (Number.parseFloat(COURSE_BY_BASE.get(b)?.credits ?? '') || 0), 0)
   const progress = coreProgress(taken, COURSE_BY_BASE)
   const done = progress.filter((p) => p.satisfiedBy).length
@@ -67,6 +71,18 @@ export default function Sidebar({
             </button>
           </>
         )}
+        <button
+          className="share-link"
+          onClick={() => {
+            navigator.clipboard.writeText(shareUrl).then(
+              () => setCopied('yes'),
+              () => setCopied('failed')
+            )
+            window.setTimeout(() => setCopied(null), 2500)
+          }}
+        >
+          {copied === 'yes' ? 'Link copied' : copied === 'failed' ? 'Copy blocked: the link is in the address bar' : 'Copy link to this plan'}
+        </button>
       </section>
 
       <section className="side-section">

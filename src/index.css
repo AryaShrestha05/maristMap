@@ -1459,3 +1459,39 @@ h3 {
     padding-right: 9px;
   }
 }
+
+.share-link {
+  flex-basis: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.share-link:hover {
+  color: var(--ink);
+}
+.share-banner {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-card);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.16), inset 0 0 0 1px var(--line);
+  font-size: 13px;
+}

@@ -66,3 +66,26 @@ export function saveState(s: SavedState): void {
     // storage full or blocked: the app keeps working for this visit
   }
 }
+
+/** The part of a plan that travels in a share link. */
+export interface SharedPlan {
+  majorId: string
+  taken: string[]
+  cart: string[]
+}
+
+export function encodeShare(p: SharedPlan): string {
+  return '#plan=' + encodeURIComponent(JSON.stringify({ m: p.majorId, t: p.taken, c: p.cart }))
+}
+
+/** Reads a `#plan=` hash. Anything unreadable, or a major that no longer exists, gives null. */
+export function decodeShare(hash: string, majorIds: string[]): SharedPlan | null {
+  if (!hash.startsWith('#plan=')) return null
+  try {
+    const o = JSON.parse(decodeURIComponent(hash.slice('#plan='.length)))
+    if (!o || typeof o.m !== 'string' || !majorIds.includes(o.m)) return null
+    return { majorId: o.m, taken: strings(o.t), cart: strings(o.c) }
+  } catch {
+    return null
+  }
+}

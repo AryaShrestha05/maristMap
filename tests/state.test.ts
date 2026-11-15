@@ -25,3 +25,34 @@ describe('saved state', () => {
     expect(decodeState(saved, [])).toEqual({ ...DEFAULT_STATE, cart: ['CMPT 220'] })
   })
 })
+
+import { decodeShare, encodeShare } from '../src/state'
+
+describe('share link', () => {
+  const ids = ['cs-sd', 'fin']
+  const plan = { majorId: 'cs-sd', taken: ['CMPT 120', 'MATH 205'], cart: ['CMPT 221'] }
+
+  test('round-trips major, taken and cart', () => {
+    expect(decodeShare(encodeShare(plan), ids)).toEqual(plan)
+  })
+
+  test('hash starts with #plan=', () => {
+    expect(encodeShare(plan).startsWith('#plan=')).toBe(true)
+  })
+
+  test('no plan in the hash → null', () => {
+    expect(decodeShare('', ids)).toBeNull()
+    expect(decodeShare('#other', ids)).toBeNull()
+  })
+
+  test('garbage or an unknown major → null, never throws', () => {
+    expect(decodeShare('#plan=%7Bnot json', ids)).toBeNull()
+    expect(decodeShare('#plan=%E0%A4%A', ids)).toBeNull()
+    expect(decodeShare(encodeShare({ ...plan, majorId: 'gone' }), ids)).toBeNull()
+  })
+
+  test('non-string entries are dropped', () => {
+    const raw = '#plan=' + encodeURIComponent(JSON.stringify({ m: 'fin', t: ['ACCT 203', 5, null], c: 'x' }))
+    expect(decodeShare(raw, ids)).toEqual({ majorId: 'fin', taken: ['ACCT 203'], cart: [] })
+  })
+})

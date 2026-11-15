@@ -10,7 +10,7 @@ import GraphView from './graph/GraphView'
 import { buildGraph, type GNode } from './graph/buildGraph'
 import { COURSE_BY_BASE, COURSES, MAJOR_BY_ID, MAJORS } from './data'
 import { CORE } from './data/core'
-import { loadState, saveState, type SavedState } from './state'
+import { decodeShare, encodeShare, loadState, saveState, type SavedState, type SharedPlan } from './state'
 
 const MAJOR_IDS = MAJORS.map((m) => m.id)
 const DEPARTMENTS = new Set(COURSES.map((c) => c.prefix)).size
@@ -28,12 +28,24 @@ export default function App() {
   const [focus, setFocus] = useState<string | null>(null)
   const [expandedCore, setExpandedCore] = useState<string | null>(null)
   const [drawer, setDrawer] = useState(false)
+  // a plan opened from a share link; asks first when it would replace a plan already here
+  const [incoming, setIncoming] = useState<SharedPlan | null>(() => {
+    const shared = decodeShare(window.location.hash, MAJOR_IDS)
+    // on the start screen there's no map to show a question on, so the shared plan just opens
+    return shared && s.majorId !== null ? shared : null
+  })
 
   // layout effect: the theme attribute must change before the graph reads the theme's colors
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = s.theme
   }, [s.theme])
   useEffect(() => saveState(s), [s])
+  // with no plan of their own, a shared plan simply opens
+  useEffect(() => {
+    const shared = decodeShare(window.location.hash, MAJOR_IDS)
+    if (shared && !incoming) setS((prev) => ({ ...prev, ...shared }))
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search)
+  }, [])
 
   const update = useCallback((patch: Partial<SavedState>) => setS((prev) => ({ ...prev, ...patch })), [])
   const taken = useMemo(() => new Set(s.taken), [s.taken])
@@ -299,10 +311,32 @@ export default function App() {
             done: major.groups.filter((g) => groupProgress(g, taken, COURSE_BY_BASE).satisfied).length,
             total: major.groups.length
           }}
+          shareUrl={window.location.origin + window.location.pathname + encodeShare({ majorId: major.id, taken: s.taken, cart: s.cart })}
           onUnmarkAll={() => update({ taken: [] })}
           onClearCart={() => update({ cart: [] })}
         />
         <main className="stage">
+          {incoming && (
+            <div className="share-banner" role="dialog" aria-label="Shared plan">
+              <span>
+                This link has a plan: <strong>{majorLabel(incoming.majorId)}</strong> · {incoming.taken.length} taken ·{' '}
+                {incoming.cart.length} in cart. Opening it replaces yours.
+              </span>
+              <button
+                className="btn primary small-btn"
+                onClick={() => {
+                  update(incoming)
+                  setIncoming(null)
+                  setSelected(null)
+                }}
+              >
+                Open it
+              </button>
+              <button className="btn small-btn" onClick={() => setIncoming(null)}>
+                Keep mine
+              </button>
+            </div>
+          )}
           {s.view === 'graph' ? (
             <GraphView
               nodes={graph.nodes}

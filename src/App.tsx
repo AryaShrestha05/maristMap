@@ -211,7 +211,7 @@ export default function App() {
           holdTime={400}
           fadeDuration={800}
           fillOpacity={s.theme === 'red' ? 0.35 : 0.22}
-          gridOpacity={0.08}
+          gridOpacity={s.theme === 'red' ? 0.16 : 0.2}
           spotlight={s.theme === 'red' ? 1 : 0.6}
           clickPulse
         >

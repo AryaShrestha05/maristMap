@@ -10,6 +10,8 @@ export interface SimNode {
   tx: number
   /** section hubs: radius of their ring of courses (labels go outside it) */
   ring?: number
+  /** courses on a ring: the hub they circle (labels point away from it) */
+  hub?: string
   ty: number
   x: number
   y: number
@@ -31,11 +33,11 @@ const radiusOf = (n: GNode): number =>
   n.root ? ROOT_RADIUS : n.kind === 'hub' ? (n.core ? CORE_RADIUS : HUB_RADIUS) : COURSE_RADIUS
 
 /** spacing between neighboring courses on a ring */
-const COURSE_GAP = 20
+const COURSE_GAP = 26
 /** radius of the ring of courses around a section hub */
 const ringRadius = (n: number): number => Math.max(34, (n * COURSE_GAP) / (2 * Math.PI))
 
-type Pt = { x: number; y: number; ring?: number }
+type Pt = { x: number; y: number; ring?: number; hub?: string }
 
 /**
  * Structured layout: each root's sections sit evenly around it, and each section's courses sit in a
@@ -87,7 +89,7 @@ export function targetPositions(nodes: GNode[], edges: GEdge[]): Map<string, Pt>
       list.forEach((id, k) => {
         // start the ring facing away from the root so courses fan outward
         const b = a + Math.PI + ((k + 0.5) / list.length) * 2 * Math.PI
-        pos.set(id, { x: hx + r * Math.cos(b), y: hy + r * Math.sin(b) })
+        pos.set(id, { x: hx + r * Math.cos(b), y: hy + r * Math.sin(b), hub: g.id })
       })
     })
     if (rootId) pos.set(rootId, { x: cx, y: cy })
@@ -150,6 +152,7 @@ export function makeSimulation(
       tx: t.x,
       ty: t.y,
       ring: t.ring,
+      hub: t.hub,
       x: old?.x ?? t.x,
       y: old?.y ?? t.y,
       vx: old?.vx,

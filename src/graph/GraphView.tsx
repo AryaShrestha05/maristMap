@@ -187,18 +187,19 @@ export default function GraphView(props: GraphViewProps) {
         const path = !E.hover && p.selectedId && p.highlight?.length ? new Set([p.selectedId, ...p.highlight]) : null
         const near = path ?? (active ? neighborhood(p.edges, active) : null)
         const zoom = viewport.scale.x
+        const zoomedIn = zoom > E.fitZoom * 1.6
         for (const v of E.views.values()) {
           v.g.position.set(v.sim.x, v.sim.y)
           v.g.alpha = !near || near.has(v.node.id) ? 1 : 0.15
-          const show =
-            !p.ambient &&
-            (v.node.kind === 'hub' || zoom > E.fitZoom * 1.6 || (near?.has(v.node.id) ?? false))
+          const show = !p.ambient && (v.node.kind === 'hub' || zoomedIn || (near?.has(v.node.id) ?? false))
           v.label.visible = show
           if (show) {
-            v.label.position.set(v.sim.x, v.sim.y + (v.sim.ring ? v.sim.ring + COURSE_LABEL_GAP : v.sim.radius + 3))
+            placeLabel(v, E.views, zoomedIn)
             v.label.scale.set(Math.min(1.6, Math.max(0.65, 1 / zoom)))
             v.label.alpha = v.g.alpha
           }
+          // zoomed in, a section's name sits in the middle of its ring and stands in for its dot
+          if (zoomedIn && v.sim.ring) v.g.alpha *= 0.12
         }
         // edges
         E.edgesG.clear()
@@ -369,6 +370,36 @@ export default function GraphView(props: GraphViewProps) {
       )}
     </div>
   )
+}
+
+/**
+ * Course labels point away from the center of their ring so neighbors don't collide. Section names
+ * sit under their ring when zoomed out, and in the ring's empty middle once course labels show.
+ */
+function placeLabel(v: View, views: Map<string, View>, zoomedIn: boolean): void {
+  const { sim, label } = v
+  if (sim.ring) {
+    if (zoomedIn) {
+      label.anchor.set(0.5, 0.5)
+      label.position.set(sim.x, sim.y)
+    } else {
+      label.anchor.set(0.5, 0)
+      label.position.set(sim.x, sim.y + sim.ring + COURSE_LABEL_GAP)
+    }
+    return
+  }
+  const hub = sim.hub ? views.get(sim.hub)?.sim : undefined
+  if (!hub) {
+    label.anchor.set(0.5, 0)
+    label.position.set(sim.x, sim.y + sim.radius + 3)
+    return
+  }
+  const a = Math.atan2(sim.y - hub.y, sim.x - hub.x)
+  const cos = Math.cos(a)
+  const sin = Math.sin(a)
+  const gap = sim.radius + 4
+  label.anchor.set(cos > 0.35 ? 0 : cos < -0.35 ? 1 : 0.5, sin > 0.35 ? 0 : sin < -0.35 ? 1 : 0.5)
+  label.position.set(sim.x + cos * gap, sim.y + sin * gap)
 }
 
 function drawNode(v: View, p: Palette, selected: boolean, ambient: boolean): void {

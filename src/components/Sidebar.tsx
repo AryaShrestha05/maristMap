@@ -67,7 +67,7 @@ export default function Sidebar({
             return (
               <li key={categoryId} className={satisfiedBy ? 'done' : ''}>
                 <span className="check-ic" aria-hidden="true" />
-                <a href={cat.source} target="_blank" rel="noreferrer" title="Official Marist list">
+                <a href={cat.source} target="_blank" rel="noreferrer">
                   {cat.name}
                 </a>
                 {satisfiedBy ? (

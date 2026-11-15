@@ -123,6 +123,7 @@ function parseTokens(tokens: Token[]): Prereq {
     const segments: { parts: Prereq[]; seps: ('and' | 'or')[] }[] = [{ parts: [parts[0]], seps: [] }]
     seps.forEach((sep, k) => {
       if (sep === 'comma' || sep === 'comma-and') segments.push({ parts: [parts[k + 1]], seps: [] })
+      else if (sep === 'comma-or') throw new Ambiguous()
       else {
         const seg = segments[segments.length - 1]
         seg.seps.push(sep)

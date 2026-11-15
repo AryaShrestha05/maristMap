@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { GEdge, GNode } from '../graph/buildGraph'
 import { COURSE_BY_BASE } from '../data'
 
@@ -7,13 +8,15 @@ export default function GridView({
   edges,
   selectedId,
   onSelect,
-  onToggleCore
+  onToggleCore,
+  legend
 }: {
   nodes: GNode[]
   edges: GEdge[]
   selectedId: string | null
   onSelect: (id: string) => void
   onToggleCore: (categoryId: string) => void
+  legend: ReactNode
 }) {
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const hubs = nodes.filter((n) => n.kind === 'hub' && !n.root)
@@ -26,6 +29,7 @@ export default function GridView({
 
   return (
     <div className="grid-view">
+      <div className="grid-legend">{legend}</div>
       {hubs.map((h) => {
         const list = members(h.id)
         const done = list.filter((n) => n.status === 'taken').length

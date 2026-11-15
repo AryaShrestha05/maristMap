@@ -108,6 +108,26 @@ export default function App() {
     return { title: c ? `${c.code} · ${c.title}` : n.id, detail: `${st}${n.inCart ? ' · in cart' : ''}` }
   }
 
+  const legend = (
+    <div className="legend" aria-label="Legend">
+      <span>
+        <i className="dot taken" /> Taken
+      </span>
+      <span>
+        <i className="dot available" /> Can take
+      </span>
+      <span>
+        <i className="dot check" /> Check requirement
+      </span>
+      <span>
+        <i className="dot locked" /> Prerequisites missing
+      </span>
+      <span>
+        <i className="dot cart" /> In cart
+      </span>
+    </div>
+  )
+
   if (!major || !graph) {
     return (
       <main className="start">
@@ -250,25 +270,9 @@ export default function App() {
               describe={describe}
             />
           ) : (
-            <GridView nodes={graph.nodes} edges={graph.edges} selectedId={selected} onSelect={open} onToggleCore={toggleCore} />
+            <GridView nodes={graph.nodes} edges={graph.edges} selectedId={selected} onSelect={open} onToggleCore={toggleCore} legend={legend} />
           )}
-          <div className="legend" aria-label="Legend">
-            <span>
-              <i className="dot taken" /> Taken
-            </span>
-            <span>
-              <i className="dot available" /> Can take
-            </span>
-            <span>
-              <i className="dot check" /> Check requirement
-            </span>
-            <span>
-              <i className="dot locked" /> Prerequisites missing
-            </span>
-            <span>
-              <i className="dot cart" /> In cart
-            </span>
-          </div>
+          {s.view === 'graph' && legend}
           {s.view === 'graph' && <p className="stage-hint">Click a course for details · click a Core circle to see its approved courses · scroll to zoom</p>}
         </main>
         {selected && (

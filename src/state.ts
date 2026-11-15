@@ -14,6 +14,10 @@ export interface SavedState {
   planStart: number | null
   /** courses the student moved in the plan: id → semester */
   planPins: Record<string, number>
+  /** courses picked for "Choose" cards: slot id → course */
+  planPicks: Record<string, string>
+  /** courses added to the plan by the student: course → semester */
+  planAdded: Record<string, number>
 }
 
 export const STORAGE_KEY = 'maristmap:v1'
@@ -26,7 +30,9 @@ export const DEFAULT_STATE: SavedState = {
   view: 'graph',
   groupBy: 'requirements',
   planStart: null,
-  planPins: {}
+  planPins: {},
+  planPicks: {},
+  planAdded: {}
 }
 
 export function encodeState(s: SavedState): string {
@@ -34,6 +40,8 @@ export function encodeState(s: SavedState): string {
 }
 
 const semester = (x: unknown): number | null => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 7 ? (x as number) : null)
+const semesterMap = (x: unknown): Record<string, number> =>
+  x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).filter(([, v]) => semester(v) !== null)) : {}
 const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : [])
 const oneOf = <T extends string>(x: unknown, options: readonly T[], fallback: T): T =>
   options.includes(x as T) ? (x as T) : fallback
@@ -56,10 +64,12 @@ export function decodeState(raw: string | null, majorIds: string[]): SavedState 
     view: oneOf(o.view, ['graph', 'grid', 'plan'] as const, DEFAULT_STATE.view),
     groupBy: oneOf(o.groupBy, ['requirements', 'departments'] as const, DEFAULT_STATE.groupBy),
     planStart: semester(o.planStart),
-    planPins:
-      o.planPins && typeof o.planPins === 'object'
-        ? Object.fromEntries(Object.entries(o.planPins).filter(([, v]) => semester(v) !== null))
-        : {}
+    planPins: semesterMap(o.planPins),
+    planPicks:
+      o.planPicks && typeof o.planPicks === 'object'
+        ? Object.fromEntries(Object.entries(o.planPicks).filter(([, v]) => typeof v === 'string'))
+        : {},
+    planAdded: semesterMap(o.planAdded)
   }
 }
 

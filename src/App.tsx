@@ -86,9 +86,18 @@ export default function App() {
   const plan = useMemo(
     () =>
       major && s.view === 'plan'
-        ? proposePlan({ major, courses: COURSE_BY_BASE, taken, cart: s.cart, start: planStart, pins: s.planPins })
+        ? proposePlan({
+            major,
+            courses: COURSE_BY_BASE,
+            taken,
+            cart: s.cart,
+            start: planStart,
+            pins: s.planPins,
+            picks: s.planPicks,
+            added: s.planAdded
+          })
         : null,
-    [major, s.view, taken, s.cart, planStart, s.planPins]
+    [major, s.view, taken, s.cart, planStart, s.planPins, s.planPicks, s.planAdded]
   )
   const canTakeNow = useMemo(
     () =>
@@ -274,7 +283,7 @@ export default function App() {
           majors={MAJORS}
           value={major.id}
           onChange={(id) => {
-            update({ majorId: id, planPins: {} })
+            update({ majorId: id, planPins: {}, planPicks: {}, planAdded: {} })
             setSelected(null)
             setExpandedCore(null)
           }}
@@ -389,11 +398,25 @@ export default function App() {
               plan={plan}
               taken={taken}
               start={planStart}
-              moved={Object.keys(s.planPins).length > 0}
+              edited={[s.planPins, s.planPicks, s.planAdded].some((m) => Object.keys(m).length > 0)}
               selectedId={selected}
               onStart={(n) => update({ planStart: n })}
-              onMove={(id, sem) => update({ planPins: { ...s.planPins, [id]: sem } })}
-              onUndoMoves={() => update({ planPins: {} })}
+              onMove={(id, sem) =>
+                id in s.planAdded
+                  ? update({ planAdded: { ...s.planAdded, [id]: sem } })
+                  : update({ planPins: { ...s.planPins, [id]: sem } })
+              }
+              onPick={(slot, base) => {
+                const { [slot]: _old, ...rest } = s.planPicks
+                update({ planPicks: base ? { ...rest, [slot]: base } : rest })
+              }}
+              onAdd={(base, sem) => update({ planAdded: { ...s.planAdded, [base]: sem } })}
+              onRemove={(base) => {
+                const { [base]: _a, ...added } = s.planAdded
+                const { [base]: _p, ...pins } = s.planPins
+                update({ planAdded: added, planPins: pins })
+              }}
+              onStartOver={() => update({ planPins: {}, planPicks: {}, planAdded: {} })}
               onOpen={(base) => {
                 setDrawer(false)
                 setSelected(base)

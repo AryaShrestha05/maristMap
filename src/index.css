@@ -1870,3 +1870,146 @@ h3 {
   background: var(--marist-red);
   box-shadow: 0 0 0 2px var(--paper);
 }
+
+/* ---------- plan editing ---------- */
+.plan-how {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 8px 0 0 !important;
+  color: var(--fg) !important;
+  font-size: 12px;
+  font-weight: 550;
+}
+.plan-how span::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.plan-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 550;
+}
+.plan-add {
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--fg) 22%, transparent);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+}
+.plan-add:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.plan-add:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.plan-card.picked {
+  box-shadow: var(--shadow-1), inset 3px 0 0 var(--marist-red), inset 0 0 0 1px var(--line);
+}
+.plan-card-for {
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.plan-card .tag.added {
+  background: #e8f3ff;
+  color: #1e4f8a;
+}
+.plan-picker {
+  position: relative;
+  z-index: 3;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
+  cursor: default;
+}
+.plan-picker input {
+  width: 100%;
+  height: 30px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+.plan-picker input:focus {
+  outline: 2px solid var(--marist-red);
+  outline-offset: -1px;
+}
+.plan-picker ul {
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.plan-picker li button {
+  display: block;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+.plan-picker li button:hover:not(:disabled),
+.plan-picker li button.on {
+  background: var(--marist-red-soft);
+}
+.plan-picker li button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.plan-picker li button .mono {
+  color: var(--marist-red);
+  font-weight: 600;
+}
+.plan-picker li.fine {
+  padding: 4px 6px;
+}
+.plan-unpick {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.plan-col h3 span.heavy {
+  color: var(--accent);
+  font-weight: 650;
+}
+.plan-move {
+  right: 30px;
+}

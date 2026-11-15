@@ -1,22 +1,26 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { COURSE_BY_BASE } from '../data'
+import { COURSE_BY_BASE, COURSES } from '../data'
 import { CODE_RE } from '../lib/parseCourse'
 import { hasUnparsedPrereq } from '../lib/plan'
-import { SEMESTERS, MAX_CREDITS, planIssues, semesterLabel, type PlanItem, type ProposedPlan } from '../lib/schedule'
+import { SEMESTERS, MAX_CREDITS, codeOf, planIssues, semesterLabel, type PlanItem, type ProposedPlan } from '../lib/schedule'
 import type { Prereq } from '../lib/types'
 
 const GRADUATION_CREDITS = 120 // "Total Credit Requirement for Graduation: 120 cr" (catalog program pages)
-const FULL_LOAD = 15
 
 interface Props {
   plan: ProposedPlan
   taken: Set<string>
   start: number
-  moved: boolean
+  /** the student has moved, picked or added something */
+  edited: boolean
   selectedId: string | null
   onStart: (semester: number) => void
   onMove: (id: string, semester: number) => void
-  onUndoMoves: () => void
+  /** fill a "Choose" card with a course, or empty it again (null) */
+  onPick: (slotId: string, base: string | null) => void
+  onAdd: (base: string, semester: number) => void
+  onRemove: (base: string) => void
+  onStartOver: () => void
   onOpen: (base: string) => void
 }
 
@@ -43,7 +47,7 @@ function needs(base: string): string[] {
 
 const credits = (base: string): number => Number.parseFloat(COURSE_BY_BASE.get(base)?.credits ?? '') || 0
 
-export default function PlanView({ plan, taken, start, moved, selectedId, onStart, onMove, onUndoMoves, onOpen }: Props) {
+export default function PlanView({ plan, taken, start, edited, selectedId, onStart, onMove, onPick, onAdd, onRemove, onStartOver, onOpen }: Props) {
   const board = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string | null>(null)
   /** clicked card: its chain stays lit while scrolling, until clicked again, empty space, or Esc */
@@ -73,14 +77,16 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
   // lines: a prerequisite (a planned course, an "one of" choice, or a course already done) → the course needing it
   const links = useMemo<Link[]>(() => {
     const semOf = new Map(plan.items.map((i) => [i.id, i.semester]))
+    const byCode = new Map(plan.items.flatMap((i) => (codeOf(i) ? [[codeOf(i)!, i.id] as const] : [])))
     const out: Link[] = []
     for (const item of plan.items) {
-      if (item.kind !== 'course') continue
-      for (const code of new Set(needs(item.id))) {
+      const own = codeOf(item)
+      if (!own) continue
+      for (const code of new Set(needs(own))) {
         let from: string | null = null
-        if (semOf.has(code)) from = code
+        if (byCode.has(code)) from = byCode.get(code)!
         else {
-          const slot = plan.items.find((i) => i.reason === 'prereq' && i.options?.includes(code))
+          const slot = plan.items.find((i) => i.reason === 'prereq' && !i.pick && i.options?.includes(code))
           if (slot) from = slot.id
           else if (taken.has(code)) from = `done:${code}`
         }
@@ -123,6 +129,16 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
     }
     return { lo, hi }
   }, [dragging, links, plan, start])
+
+  /** 16 credits is the most a semester can hold */
+  const fits = (id: string, s: number): boolean => {
+    const item = plan.items.find((i) => i.id === id)
+    if (!item) return false
+    if (item.semester === s) return true
+    return plan.semesters[s].credits + item.credits <= MAX_CREDITS
+  }
+  const [addingTo, setAddingTo] = useState<number | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   // cards glide to their new place (FLIP), and the lines follow them while they move
   const lastRects = useRef(new Map<string, { x: number; y: number }>())
@@ -209,7 +225,7 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
   const drop = (s: number) => (e: React.DragEvent): void => {
     e.preventDefault()
     const id = e.dataTransfer.getData('text/plain')
-    if (id) onMove(id, s)
+    if (id && fits(id, s)) onMove(id, s)
     setDragging(null)
     setOver(null)
   }
@@ -217,17 +233,26 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
   const card = (i: PlanItem) => {
     const lit = !chain || chain.has(i.id)
     const problems = issues[i.id]
+    const code = codeOf(i)
+    const course = code ? COURSE_BY_BASE.get(code) : undefined
+    const open = () => {
+      stick(i.id)
+      if (code) onOpen(code)
+      else setOpenSlot((o) => (o === i.id ? null : i.id))
+    }
     const cls = [
       'plan-card',
-      i.kind === 'slot' ? 'slot' : '',
+      i.kind === 'slot' && !i.pick ? 'slot' : '',
+      i.pick ? 'picked' : '',
       problems ? 'bad' : '',
       lit ? '' : 'dim',
       focus === i.id ? 'hot' : '',
       stuck === i.id ? 'stuck' : '',
-      selectedId === i.id ? 'selected' : '',
+      selectedId === code ? 'selected' : '',
       dragging === i.id ? 'lifting' : ''
     ].join(' ')
     const s = i.semester
+    const name = code ?? i.title
     return (
       <div
         key={i.id}
@@ -236,7 +261,8 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         draggable
         tabIndex={0}
         role="button"
-        aria-label={`${i.kind === 'course' ? i.id : i.title}${s !== null ? `, ${semesterLabel(s)}` : ''}${problems ? `. ${problems.join('. ')}` : ''}`}
+        aria-pressed={stuck === i.id}
+        aria-label={`${name}${s !== null ? `, ${semesterLabel(s)}` : ''}${problems ? `. ${problems.join('. ')}` : ''}`}
         onDragStart={(e) => {
           e.dataTransfer.setData('text/plain', i.id)
           e.dataTransfer.effectAllowed = 'move'
@@ -249,64 +275,88 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         }}
         onMouseEnter={() => !dragging && setHover(i.id)}
         onMouseLeave={() => setHover((h) => (h === i.id ? null : h))}
-        aria-pressed={stuck === i.id}
-        onClick={() => {
-          stick(i.id)
-          if (i.kind === 'course') onOpen(i.id)
-          else setOpenSlot((o) => (o === i.id ? null : i.id))
-        }}
+        onClick={open}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            stick(i.id)
-            if (i.kind === 'course') onOpen(i.id)
-            else setOpenSlot((o) => (o === i.id ? null : i.id))
+            open()
           }
         }}
       >
         <div className="plan-card-top">
-          {i.kind === 'course' ? <span className="mono code">{i.id}</span> : <span className="choose">Choose</span>}
+          {code ? <span className="mono code">{code}</span> : <span className="choose">Choose</span>}
           <span className="cr">{i.credits} cr</span>
         </div>
-        <div className="plan-card-title">{i.kind === 'course' ? i.title : i.title.replace(/^Core: /, '')}</div>
+        <div className="plan-card-title">{course ? course.title : i.title.replace(/^Core: /, '')}</div>
+        {i.pick && <div className="plan-card-for">for {i.title.replace(/^Core: /, 'Core: ')}</div>}
         <div className="plan-card-tags">
           {i.reason === 'core' && <span className="tag core">Core</span>}
           {i.reason === 'prereq' && <span className="tag">Prerequisite</span>}
           {i.reason === 'cart' && <span className="tag cart">In cart</span>}
-          {i.pinned && <span className="tag moved">Moved</span>}
-          {i.kind === 'slot' && <span className="tag">{i.options?.length ?? 0} options</span>}
+          {i.reason === 'added' && <span className="tag added">Added</span>}
+          {i.pick && <span className="tag added">Your pick</span>}
+          {i.pinned && i.reason !== 'added' && <span className="tag moved">Moved</span>}
+          {i.kind === 'slot' && !i.pick && <span className="tag">{i.options?.length ?? 0} options</span>}
         </div>
         {problems && <p className="plan-card-issue">{problems.join(' · ')}</p>}
         {i.kind === 'slot' && openSlot === i.id && (
-          <div className="plan-options" onClick={(e) => e.stopPropagation()}>
-            {(i.options ?? []).slice(0, 18).map((o) => (
-              <button key={o} className="mono" onClick={() => onOpen(o)} title={COURSE_BY_BASE.get(o)?.title}>
-                {o}
+          <SlotPicker
+            options={i.options ?? []}
+            current={i.pick ?? null}
+            onPick={(b) => {
+              onPick(i.id, b)
+              setOpenSlot(null)
+            }}
+            onClose={() => setOpenSlot(null)}
+          />
+        )}
+        <div className="plan-move" onClick={(e) => e.stopPropagation()}>
+          {i.pick && (
+            <button aria-label={`Change the course picked for ${i.title}`} title="Change pick" onClick={() => setOpenSlot(i.id)}>
+              ✎
+            </button>
+          )}
+          {i.reason === 'added' && (
+            <button aria-label={`Remove ${name} from the plan`} title="Remove" onClick={() => onRemove(i.id)}>
+              ✕
+            </button>
+          )}
+          {s !== null && (
+            <>
+              <button aria-label={`Move ${name} a semester earlier`} disabled={s <= start || !fits(i.id, s - 1)} onClick={() => onMove(i.id, s - 1)}>
+                ←
               </button>
-            ))}
-            {(i.options?.length ?? 0) > 18 && <span className="fine">and {i.options!.length - 18} more</span>}
-          </div>
-        )}
-        {s !== null && (
-          <div className="plan-move" onClick={(e) => e.stopPropagation()}>
-            <button aria-label={`Move ${i.id} a semester earlier`} disabled={s <= start} onClick={() => onMove(i.id, s - 1)}>
-              ←
-            </button>
-            <button aria-label={`Move ${i.id} a semester later`} disabled={s >= SEMESTERS - 1} onClick={() => onMove(i.id, s + 1)}>
-              →
-            </button>
-          </div>
-        )}
+              <button
+                aria-label={`Move ${name} a semester later`}
+                disabled={s >= SEMESTERS - 1 || !fits(i.id, s + 1)}
+                onClick={() => onMove(i.id, s + 1)}
+              >
+                →
+              </button>
+            </>
+          )}
+        </div>
       </div>
     )
   }
+
+  const inPlan = new Set([...taken, ...plan.items.flatMap((i) => (codeOf(i) ? [codeOf(i)!] : []))])
 
   return (
     <section className="plan" aria-label="Proposed four-year plan">
       <header className="plan-head">
         <div className="plan-title">
-          <h2>Proposed plan</h2>
-          <p>Generated from the catalog’s prerequisites, terms offered and your major’s rules. Not an official Marist sequence.</p>
+          <h2>{edited ? 'Your plan' : 'Proposed plan'}</h2>
+          <p>
+            Generated from the catalog’s prerequisites, terms offered and your major’s rules. Not an official Marist sequence.
+          </p>
+          <p className="plan-how">
+            <span>Drag a course to another semester</span>
+            <span>Click a “Choose” card to pick a course</span>
+            <span>+ Add course for electives</span>
+            <span>16 credits a semester at most</span>
+          </p>
         </div>
         <div className="plan-controls">
           <label className="plan-start">
@@ -323,11 +373,28 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
             <strong>{plannedCredits}</strong> cr planned · <strong>{doneCredits}</strong> done · {electives} left for electives of{' '}
             {GRADUATION_CREDITS}
           </span>
-          {moved && (
-            <button className="btn small-btn" onClick={onUndoMoves}>
-              Undo my moves
-            </button>
-          )}
+          {edited &&
+            (confirmReset ? (
+              <span className="plan-confirm">
+                Clear your moves, picks and added courses?
+                <button
+                  className="btn primary small-btn"
+                  onClick={() => {
+                    onStartOver()
+                    setConfirmReset(false)
+                  }}
+                >
+                  Start over
+                </button>
+                <button className="btn small-btn" onClick={() => setConfirmReset(false)}>
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button className="btn small-btn" onClick={() => setConfirmReset(true)}>
+                ↺ Start over
+              </button>
+            ))}
         </div>
       </header>
 
@@ -375,24 +442,41 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         {bySemester.map((items, s) => {
           if (s < start) return null
           const cr = plan.semesters[s].credits
-          const verdict = allowed ? (s >= allowed.lo && s <= allowed.hi ? 'ok' : 'no') : ''
+          const full = cr >= MAX_CREDITS
+          const verdict = allowed && dragging ? (s >= allowed.lo && s <= allowed.hi && fits(dragging, s) ? 'ok' : 'no') : ''
           return (
             <div
               key={s}
               className={`plan-col ${over === s ? 'over' : ''} ${verdict}`}
               onDragOver={(e) => {
                 e.preventDefault()
-                e.dataTransfer.dropEffect = 'move'
+                e.dataTransfer.dropEffect = dragging && !fits(dragging, s) ? 'none' : 'move'
                 if (over !== s) setOver(s)
               }}
               onDrop={drop(s)}
             >
               <h3>
                 {semesterLabel(s)}
-                <span className={cr > MAX_CREDITS ? 'heavy' : ''}>{cr} cr</span>
+                <span className={full ? 'heavy' : ''}>
+                  {cr} / {MAX_CREDITS} cr
+                </span>
               </h3>
               <div className="plan-stack">{items.map(card)}</div>
-              {cr < FULL_LOAD && <p className="plan-room">Room for {FULL_LOAD - cr} cr of electives</p>}
+              {addingTo === s ? (
+                <AddCourse
+                  exclude={inPlan}
+                  room={MAX_CREDITS - cr}
+                  onAdd={(b) => {
+                    onAdd(b, s)
+                    setAddingTo(null)
+                  }}
+                  onClose={() => setAddingTo(null)}
+                />
+              ) : (
+                <button className="plan-add" disabled={full} onClick={() => setAddingTo(s)}>
+                  {full ? 'Full: 16 credits' : `+ Add course · ${MAX_CREDITS - cr} cr open`}
+                </button>
+              )}
             </div>
           )
         })}
@@ -405,5 +489,89 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         )}
       </div>
     </section>
+  )
+}
+
+/** The options of a "Choose" card, searchable; clicking one picks it. */
+function SlotPicker({
+  options,
+  current,
+  onPick,
+  onClose
+}: {
+  options: string[]
+  current: string | null
+  onPick: (base: string | null) => void
+  onClose: () => void
+}) {
+  const [q, setQ] = useState('')
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const shown = options
+    .filter((b) => {
+      const hay = `${b} ${COURSE_BY_BASE.get(b)?.title ?? ''}`.toLowerCase()
+      return words.every((w) => hay.includes(w))
+    })
+    .slice(0, 40)
+  return (
+    <div className="plan-picker" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      {options.length > 6 && (
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${options.length} options`} aria-label="Search options" />
+      )}
+      <ul>
+        {shown.map((b) => (
+          <li key={b}>
+            <button className={b === current ? 'on' : ''} onClick={() => onPick(b)}>
+              <span className="mono">{b}</span> {COURSE_BY_BASE.get(b)?.title}
+            </button>
+          </li>
+        ))}
+        {shown.length === 0 && <li className="fine">No options match.</li>}
+      </ul>
+      {current && (
+        <button className="plan-unpick" onClick={() => onPick(null)}>
+          Leave it open
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Search the whole catalog and add a course to a semester. */
+function AddCourse({
+  exclude,
+  room,
+  onAdd,
+  onClose
+}: {
+  exclude: Set<string>
+  room: number
+  onAdd: (base: string) => void
+  onClose: () => void
+}) {
+  const [q, setQ] = useState('')
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const results = words.length
+    ? COURSES.filter((c) => !exclude.has(c.base) && words.every((w) => `${c.base} ${c.code} ${c.title}`.toLowerCase().includes(w))).slice(0, 8)
+    : []
+  return (
+    <div className="plan-picker add" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Course code or title" aria-label="Find a course to add" />
+      <ul>
+        {results.map((c) => {
+          const cr = credits(c.base) || 3
+          return (
+            <li key={c.base}>
+              <button disabled={cr > room} onClick={() => onAdd(c.base)} title={cr > room ? `Only ${room} cr open` : undefined}>
+                <span className="mono">{c.base}</span> {c.title} <span className="fine">{c.credits} cr</span>
+              </button>
+            </li>
+          )
+        })}
+        {words.length > 0 && results.length === 0 && <li className="fine">No courses match.</li>}
+      </ul>
+      <button className="plan-unpick" onClick={onClose}>
+        Cancel
+      </button>
+    </div>
   )
 }

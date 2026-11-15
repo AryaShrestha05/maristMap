@@ -73,3 +73,17 @@ describe('saved plan settings', () => {
     expect(back.planPins).toEqual({ a: 2 })
   })
 })
+
+describe('saved plan edits', () => {
+  test('picks and added courses are kept; malformed entries dropped', () => {
+    const raw = JSON.stringify({ planPicks: { 'core:history': 'HIST 101', bad: 5 }, planAdded: { 'MATH 115': 3, 'X 1': 11, y: 'z' } })
+    const back = decodeState(raw, [])
+    expect(back.planPicks).toEqual({ 'core:history': 'HIST 101' })
+    expect(back.planAdded).toEqual({ 'MATH 115': 3 })
+  })
+
+  test('defaults are empty', () => {
+    expect(decodeState(null, []).planPicks).toEqual({})
+    expect(decodeState(null, []).planAdded).toEqual({})
+  })
+})

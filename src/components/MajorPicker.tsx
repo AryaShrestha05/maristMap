@@ -26,10 +26,17 @@ export default function MajorPicker({
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     const words = q.split(/\s+/).filter(Boolean)
-    return majors.filter((m) => {
+    const hits = majors.filter((m) => {
       const hay = `${m.name} ${m.concentration ?? ''} ${m.degree}`.toLowerCase()
       return words.every((w) => hay.includes(w))
     })
+    if (!q) return hits
+    // the major's own name matching beats a concentration matching ("finance" → Finance before Business – Finance)
+    const rank = (m: Major): number => {
+      const name = m.name.toLowerCase()
+      return name.startsWith(q) ? 0 : words.every((w) => name.includes(w)) ? 1 : 2
+    }
+    return hits.map((m, i) => ({ m, i, r: rank(m) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.m)
   }, [majors, query])
 
   useEffect(() => {

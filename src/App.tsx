@@ -287,7 +287,7 @@ export default function App() {
             <GridView nodes={graph.nodes} edges={graph.edges} selectedId={selected} onSelect={open} onToggleCore={toggleCore} legend={legend} />
           )}
           {s.view === 'graph' && legend}
-          {s.view === 'graph' && <p className="stage-hint">Click a course for details · click a Core circle to see its approved courses · scroll to zoom</p>}
+          {s.view === 'graph' && <p className="stage-hint">Hover a course to see its prerequisites · click it for details and its path · click a Core circle to see approved courses</p>}
         </main>
         {selected && (
           <CoursePanel

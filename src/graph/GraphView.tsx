@@ -5,6 +5,9 @@ import type { Simulation } from 'd3-force'
 import type { GEdge, GNode } from './buildGraph'
 import { makeSimulation, type SimLink, type SimNode } from './layout'
 
+/** gap between a section's ring of courses and its label */
+const COURSE_LABEL_GAP = 10
+
 export interface GraphViewProps {
   nodes: GNode[]
   edges: GEdge[]
@@ -58,7 +61,15 @@ function readPalette(): Palette {
 }
 
 /** Long requirement names are shortened on the map; the hover card shows them in full. */
-const short = (n: GNode): string => (n.kind === 'hub' && n.label.length > 34 ? n.label.slice(0, 32).trimEnd() + '…' : n.label)
+/**
+ * Map label: section names drop a repeated concentration prefix ("Software Development: Choice of
+ * either" → "Choice of either") and wrap; very long ones are trimmed. The hover card shows full names.
+ */
+const short = (n: GNode): string => {
+  if (n.kind !== 'hub' || n.root || n.core) return n.label
+  const label = n.label.includes(': ') ? n.label.slice(n.label.indexOf(': ') + 2) : n.label
+  return label.length > 44 ? label.slice(0, 42).trimEnd() + '…' : label
+}
 
 interface View {
   node: GNode
@@ -184,7 +195,7 @@ export default function GraphView(props: GraphViewProps) {
             (v.node.kind === 'hub' || zoom > E.fitZoom * 1.6 || (near?.has(v.node.id) ?? false))
           v.label.visible = show
           if (show) {
-            v.label.position.set(v.sim.x, v.sim.y + v.sim.radius + 3)
+            v.label.position.set(v.sim.x, v.sim.y + (v.sim.ring ? v.sim.ring + COURSE_LABEL_GAP : v.sim.radius + 3))
             v.label.scale.set(Math.min(1.6, Math.max(0.65, 1 / zoom)))
             v.label.alpha = v.g.alpha
           }
@@ -203,9 +214,10 @@ export default function GraphView(props: GraphViewProps) {
           if (any) E.edgesG.stroke({ color, alpha, width })
         }
         stroke((l) => l.kind === 'member' && l.source.root === true && lit(l), E.palette.edge, 1, w * 2)
-        stroke((l) => l.kind === 'member' && !l.source.root && lit(l), E.palette.edge, 1, w)
-        stroke((l) => l.kind === 'prereq' && lit(l), E.palette.prereq, near ? 1 : 0.5, w * (near ? 2 : 1.1))
-        if (near) stroke((l) => !lit(l), E.palette.edge, 0.3, w)
+        stroke((l) => l.kind === 'member' && !l.source.root && lit(l), E.palette.edge, 1, w * 1.2)
+        if (near) stroke((l) => l.kind === 'member' && !lit(l), E.palette.edge, 0.3, w)
+        // prerequisite lines only for what you're looking at: the hovered or open course and its path
+        if (near) stroke((l) => l.kind === 'prereq' && lit(l), E.palette.prereq, 1, w * 2)
       }
       app.ticker.add(tick)
       setReady(true)
@@ -277,7 +289,10 @@ export default function GraphView(props: GraphViewProps) {
             fontWeight: n.root ? '800' : n.kind === 'hub' ? '600' : '500',
             fill: '#000',
             stroke: { color: '#fff', width: 4, join: 'round' },
-            letterSpacing: n.kind === 'hub' ? -0.2 : 0
+            letterSpacing: n.kind === 'hub' ? -0.2 : 0,
+            wordWrap: n.kind === 'hub' && !n.root,
+            wordWrapWidth: 130,
+            align: 'center'
           },
           resolution: 3
         })

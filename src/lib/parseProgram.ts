@@ -108,13 +108,16 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
         continue
       }
       if (item.type === 'heading') {
-        if (CONCENTRATION_RE.test(item.text)) {
-          concentration = splitTitle(item.text)
-            .title.replace(/\s*\([^)]*\)\s*$/, '') // "(9 credits)", "(select 5)"
-            .replace(/^\d+(\.\d+)*\s+/, '') // "1.2 "
-            .replace(/^(concentration|track)\s+(in|:)?\s*/i, '')
-            .replace(/\s+(concentration|track)$/i, '')
-            .trim()
+        const cleaned = splitTitle(item.text)
+          .title.replace(/\s*\([^)]*\)\s*$/, '') // "(9 credits)", "(select 5)"
+          .replace(/^\d+(\.\d+)*\s+/, '') // "1.2 "
+          .replace(/^(concentration|track)\s+(in|:)?\s*/i, '')
+          .replace(/\s+(concentration|track)$/i, '')
+          .trim()
+        // "1.2 Major Concentration" nested under a concentration names no new one: it's a section of it
+        const generic = concentration !== null && item.level > concentrationLevel && /^(major)?$/i.test(cleaned)
+        if (CONCENTRATION_RE.test(item.text) && !generic) {
+          concentration = cleaned
           concentrationLevel = item.level
           start(item.text, true)
           continue

@@ -242,3 +242,44 @@ describe('parsePrograms — credit totals as the rule', () => {
     expect(detectPick('Software Development: Choice of approved upper-level CMPT courses including', [])).toEqual({ count: 1 })
   })
 })
+
+describe('a "Concentration" heading nested inside a concentration', () => {
+  // Shape from the real "Studio Art, B.S." page: H3 "Concentration in Studio Art" holds H4 "1.2 Major Concentration"
+  const page: RawProgram = {
+    poid: '300',
+    name: 'Studio Art, B.S.',
+    url: 'u',
+    items: [
+      { type: 'heading', level: 3, text: 'Concentration in Studio Art' },
+      { type: 'heading', level: 4, text: '1.0 Course Requirements: 18 cr' },
+      { type: 'course', text: 'CMPT 120L - x 3 Credit(s)', coid: '1' },
+      { type: 'heading', level: 4, text: '1.2 Major Concentration: 30 cr' },
+      { type: 'course', text: 'CMPT 220L - x 3 Credit(s)', coid: '2' }
+    ]
+  }
+
+  test('is a section of that concentration, not a second concentration', () => {
+    const majors = parsePrograms([page], byCoid)
+    expect(majors.map((m) => m.concentration)).toEqual(['Studio Art'])
+    expect(majors[0].groups.map((g) => g.courses)).toEqual([['CMPT 120'], ['CMPT 220']])
+  })
+})
+
+describe('a named track nested inside a concentration', () => {
+  // Shape from "Business Administration, B.S.": Finance Concentration → Corporate Finance Track
+  test('still becomes its own concentration', () => {
+    const page: RawProgram = {
+      poid: '301',
+      name: 'Business Administration, B.S.',
+      url: 'u',
+      items: [
+        { type: 'heading', level: 3, text: 'Finance Concentration' },
+        { type: 'heading', level: 4, text: 'Corporate Finance Track' },
+        { type: 'course', text: 'CMPT 120L - x 3 Credit(s)', coid: '1' },
+        { type: 'heading', level: 4, text: 'Investments Track' },
+        { type: 'course', text: 'CMPT 220L - x 3 Credit(s)', coid: '2' }
+      ]
+    }
+    expect(parsePrograms([page], byCoid).map((m) => m.concentration)).toEqual(['Corporate Finance', 'Investments'])
+  })
+})

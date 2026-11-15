@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import ThemeSwitch from './components/ThemeSwitch'
 import CoursePanel from './components/CoursePanel'
 import GridView from './components/GridView'
@@ -39,10 +39,11 @@ export default function App() {
   const [focus, setFocus] = useState<string | null>(null)
   const [expandedCore, setExpandedCore] = useState<string | null>(null)
 
-  useEffect(() => {
+  // layout effect: the theme attribute must change before the graph reads the theme's colors
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = s.theme
-    saveState(s)
-  }, [s])
+  }, [s.theme])
+  useEffect(() => saveState(s), [s])
 
   const update = useCallback((patch: Partial<SavedState>) => setS((prev) => ({ ...prev, ...patch })), [])
   const taken = useMemo(() => new Set(s.taken), [s.taken])

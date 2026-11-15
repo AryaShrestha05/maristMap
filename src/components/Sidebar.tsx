@@ -11,7 +11,8 @@ export default function Sidebar({
   onToggleCart,
   onMarkTaken,
   canTakeNow,
-  onReset
+  onUnmarkAll,
+  onClearCart
 }: {
   taken: Set<string>
   cart: string[]
@@ -20,9 +21,11 @@ export default function Sidebar({
   onMarkTaken: (bases: string[]) => void
   /** this major's courses whose prerequisites are all met (not taken, not in the cart) */
   canTakeNow: string[]
-  onReset: () => void
+  onUnmarkAll: () => void
+  onClearCart: () => void
 }) {
   const [confirming, setConfirming] = useState(false)
+  const takenCredits = [...taken].reduce((n, b) => n + (Number.parseFloat(COURSE_BY_BASE.get(b)?.credits ?? '') || 0), 0)
   const progress = coreProgress(taken, COURSE_BY_BASE)
   const done = progress.filter((p) => p.satisfiedBy).length
   const warnings = cartWarnings(cart, taken, COURSE_BY_BASE)
@@ -30,11 +33,49 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar" aria-label="Your plan">
+      <section className="taken-bar" aria-live="polite">
+        {confirming ? (
+          <>
+            <span className="taken-text">Unmark {taken.size} {taken.size === 1 ? 'course' : 'courses'}?</span>
+            <button
+              className="btn primary small-btn"
+              onClick={() => {
+                onUnmarkAll()
+                setConfirming(false)
+              }}
+            >
+              Unmark all
+            </button>
+            <button className="btn small-btn" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="taken-text">
+              <strong>{taken.size}</strong> {taken.size === 1 ? 'course' : 'courses'} taken
+              {takenCredits > 0 && <span className="count"> · {takenCredits} cr</span>}
+            </span>
+            <button className="btn small-btn reset-btn" onClick={() => setConfirming(true)} disabled={taken.size === 0}>
+              ↺ Reset
+            </button>
+          </>
+        )}
+      </section>
+
       <section className="side-section">
         <h3>
           Cart{' '}
           <span className="count">
             {cart.length} {cart.length === 1 ? 'course' : 'courses'} · {credits} cr
+            {cart.length > 0 && (
+              <>
+                {' · '}
+                <button className="linkish clear-link" onClick={onClearCart}>
+                  Clear
+                </button>
+              </>
+            )}
           </span>
         </h3>
         {cart.length === 0 ? (
@@ -112,29 +153,6 @@ export default function Sidebar({
 
       <ImportBox taken={taken} onMarkTaken={onMarkTaken} />
 
-      <div className="start-over">
-        {confirming ? (
-          <>
-            Clear your taken courses and cart?
-            <button
-              className="linkish danger"
-              onClick={() => {
-                onReset()
-                setConfirming(false)
-              }}
-            >
-              Clear
-            </button>
-            <button className="linkish" onClick={() => setConfirming(false)}>
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button className="linkish" onClick={() => setConfirming(true)} disabled={taken.size === 0 && cart.length === 0}>
-            Start over
-          </button>
-        )}
-      </div>
     </aside>
   )
 }

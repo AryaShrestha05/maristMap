@@ -265,10 +265,8 @@ export default function App() {
           onToggleCart={toggleCart}
           onMarkTaken={(bases) => update({ taken: [...new Set([...s.taken, ...bases])], cart: s.cart.filter((b) => !bases.includes(b)) })}
           canTakeNow={canTakeNow}
-          onReset={() => {
-            update({ taken: [], cart: [] })
-            setSelected(null)
-          }}
+          onUnmarkAll={() => update({ taken: [] })}
+          onClearCart={() => update({ cart: [] })}
         />
         <main className="stage">
           {s.view === 'graph' ? (

@@ -87,8 +87,19 @@ describe('buildGraph — groups with the same title', () => {
       { title: 'Choice of either', credits: null, courses: ['CMPT 220'], notes: [] }
     ] }
     const g = buildGraph({ major: twin, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null })
-    const hubs = g.nodes.filter((n) => n.kind === 'hub' && !n.core)
+    const hubs = g.nodes.filter((n) => n.kind === 'hub' && !n.core && !n.root)
     expect(hubs).toHaveLength(2)
     expect(hubs.map((h) => h.label)).toEqual(['Choice of either', 'Choice of either'])
+  })
+})
+
+describe('buildGraph — root hubs', () => {
+  const g = buildGraph({ major, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+  test('a Major root links every requirement group; a Core root links every Core category', () => {
+    const root = g.nodes.find((n) => n.id === 'root:major')!
+    expect(root).toMatchObject({ kind: 'hub', root: true, label: 'Computer Science' })
+    expect(g.nodes.find((n) => n.id === 'root:core')).toMatchObject({ kind: 'hub', root: true, label: 'Core requirements' })
+    expect(g.edges).toContainEqual({ source: 'root:major', target: 'group:0', kind: 'member' })
+    expect(g.edges).toContainEqual({ source: 'root:core', target: 'core:literature', kind: 'member' })
   })
 })

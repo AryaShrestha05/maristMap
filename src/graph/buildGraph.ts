@@ -15,6 +15,8 @@ export interface GNode {
   missing?: boolean
   /** Core hubs only */
   core?: boolean
+  /** the Major and Core root hubs that tie their sections together */
+  root?: boolean
   satisfied?: boolean
 }
 
@@ -69,7 +71,12 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
 
   // hubs
   if (groupBy === 'requirements') {
-    major.groups.forEach((g, i) => nodes.set(`group:${i}`, { id: `group:${i}`, kind: 'hub', label: g.title }))
+    nodes.set('root:major', { id: 'root:major', kind: 'hub', root: true, label: major.name })
+    nodes.set('root:core', { id: 'root:core', kind: 'hub', root: true, label: 'Core requirements' })
+    major.groups.forEach((g, i) => {
+      nodes.set(`group:${i}`, { id: `group:${i}`, kind: 'hub', label: g.title })
+      edges.push({ source: 'root:major', target: `group:${i}`, kind: 'member' })
+    })
     const progress = new Map(coreProgress(taken, courses).map((p) => [p.categoryId, p.satisfiedBy]))
     for (const c of CORE) {
       nodes.set(`core:${c.id}`, {
@@ -79,6 +86,7 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
         core: true,
         satisfied: progress.get(c.id) != null
       })
+      edges.push({ source: 'root:core', target: `core:${c.id}`, kind: 'member' })
     }
   } else {
     for (const base of shown) {

@@ -226,7 +226,7 @@ export default function App() {
               className="start-card"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (picked) update({ majorId: picked })
+                if (picked) update({ majorId: picked, view: 'grid' })
               }}
             >
               <img className="mark" src="/fox.png" alt="Marist Red Fox" />

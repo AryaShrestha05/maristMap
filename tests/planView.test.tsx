@@ -138,25 +138,24 @@ describe('editing', () => {
     expect(onAdd).toHaveBeenCalledWith('ART 110', 7)
   })
 
-  test('a full semester (16 credits) takes no more: no drop, no arrow move, no add', () => {
+  test('no hard cap: a course can go into a 16-credit semester, which is then flagged as over 16', () => {
     const full = proposePlan({ major, courses: COURSE_BY_BASE, taken: new Set(), cart: [], start: 0, pins: {} })
     const s = full.semesters.findIndex((x) => x.credits >= 15)
-    const fullPlan = { ...full, semesters: full.semesters.map((x, i) => (i === s ? { ...x, credits: 16 } : x)) }
+    const over = { ...full, semesters: full.semesters.map((x, k) => (k === s ? { ...x, credits: 19 } : x)) }
     const onMove = vi.fn()
     const { container } = render(
-      <PlanView plan={fullPlan} taken={new Set()} start={0} edited={false} selectedId={null} onStart={() => {}} onMove={onMove}
+      <PlanView plan={over} taken={new Set()} start={0} edited={false} selectedId={null} onStart={() => {}} onMove={onMove}
         onPick={() => {}} onAdd={() => {}} onRemove={() => {}} onStartOver={() => {}} onOpen={() => {}} />
     )
     const cols = [...container.querySelectorAll('.plan-col')]
-    expect((cols[s].querySelector('.plan-add') as HTMLButtonElement).disabled).toBe(true)
+    expect((cols[s].querySelector('.plan-add') as HTMLButtonElement).disabled).toBe(false)
+    expect(cols[s].textContent).toContain('Over 16 credits')
     const outsider = full.items.find((i) => i.semester === s + 1)!
     const data = new Map<string, string>()
     const dataTransfer = { setData: (k: string, v: string) => data.set(k, v), getData: (k: string) => data.get(k) ?? '', effectAllowed: '', dropEffect: '' }
     fireEvent.dragStart(container.querySelector(`[data-card="${outsider.id}"]`)!, { dataTransfer })
     fireEvent.drop(cols[s], { dataTransfer })
-    expect(onMove).not.toHaveBeenCalled()
-    const name = outsider.kind === 'course' ? outsider.id : outsider.title
-    expect((screen.getByRole('button', { name: `Move ${name} a semester earlier` }) as HTMLButtonElement).disabled).toBe(true)
+    expect(onMove).toHaveBeenCalledWith(outsider.id, s)
   })
 
   test('Start over asks first', () => {

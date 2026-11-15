@@ -1994,3 +1994,7 @@ h3 {
 .plan-move {
   right: 30px;
 }
+.plan-room.heavy {
+  color: var(--accent);
+  font-weight: 650;
+}

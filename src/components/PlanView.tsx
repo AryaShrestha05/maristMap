@@ -130,13 +130,6 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
     return { lo, hi }
   }, [dragging, links, plan, start])
 
-  /** 16 credits is the most a semester can hold */
-  const fits = (id: string, s: number): boolean => {
-    const item = plan.items.find((i) => i.id === id)
-    if (!item) return false
-    if (item.semester === s) return true
-    return plan.semesters[s].credits + item.credits <= MAX_CREDITS
-  }
   const [addingTo, setAddingTo] = useState<number | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -225,7 +218,7 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
   const drop = (s: number) => (e: React.DragEvent): void => {
     e.preventDefault()
     const id = e.dataTransfer.getData('text/plain')
-    if (id && fits(id, s)) onMove(id, s)
+    if (id) onMove(id, s)
     setDragging(null)
     setOver(null)
   }
@@ -324,12 +317,12 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
           )}
           {s !== null && (
             <>
-              <button aria-label={`Move ${name} a semester earlier`} disabled={s <= start || !fits(i.id, s - 1)} onClick={() => onMove(i.id, s - 1)}>
+              <button aria-label={`Move ${name} a semester earlier`} disabled={s <= start} onClick={() => onMove(i.id, s - 1)}>
                 ←
               </button>
               <button
                 aria-label={`Move ${name} a semester later`}
-                disabled={s >= SEMESTERS - 1 || !fits(i.id, s + 1)}
+                disabled={s >= SEMESTERS - 1}
                 onClick={() => onMove(i.id, s + 1)}
               >
                 →
@@ -433,30 +426,29 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
         {bySemester.map((items, s) => {
           if (s < start) return null
           const cr = plan.semesters[s].credits
-          const full = cr >= MAX_CREDITS
-          const verdict = allowed && dragging ? (s >= allowed.lo && s <= allowed.hi && fits(dragging, s) ? 'ok' : 'no') : ''
+          const over16 = cr > MAX_CREDITS
+          const verdict = allowed ? (s >= allowed.lo && s <= allowed.hi ? 'ok' : 'no') : ''
           return (
             <div
               key={s}
               className={`plan-col ${over === s ? 'over' : ''} ${verdict}`}
               onDragOver={(e) => {
                 e.preventDefault()
-                e.dataTransfer.dropEffect = dragging && !fits(dragging, s) ? 'none' : 'move'
+                e.dataTransfer.dropEffect = 'move'
                 if (over !== s) setOver(s)
               }}
               onDrop={drop(s)}
             >
               <h3>
                 {semesterLabel(s)}
-                <span className={full ? 'heavy' : ''}>
-                  {cr} / {MAX_CREDITS} cr
+                <span className={over16 ? 'heavy' : ''} title={over16 ? `Over ${MAX_CREDITS} credits` : undefined}>
+                  {cr} cr
                 </span>
               </h3>
               <div className="plan-stack">{items.map(card)}</div>
               {addingTo === s ? (
                 <AddCourse
                   exclude={inPlan}
-                  room={MAX_CREDITS - cr}
                   onAdd={(b) => {
                     onAdd(b, s)
                     setAddingTo(null)
@@ -464,10 +456,11 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
                   onClose={() => setAddingTo(null)}
                 />
               ) : (
-                <button className="plan-add" disabled={full} onClick={() => setAddingTo(s)}>
-                  {full ? 'Full: 16 credits' : `+ Add course · ${MAX_CREDITS - cr} cr open`}
+                <button className="plan-add" onClick={() => setAddingTo(s)}>
+                  + Add course
                 </button>
               )}
+              {over16 && <p className="plan-room heavy">Over {MAX_CREDITS} credits</p>}
             </div>
           )
         })}
@@ -530,12 +523,10 @@ function SlotPicker({
 /** Search the whole catalog and add a course to a semester. */
 function AddCourse({
   exclude,
-  room,
   onAdd,
   onClose
 }: {
   exclude: Set<string>
-  room: number
   onAdd: (base: string) => void
   onClose: () => void
 }) {
@@ -548,16 +539,13 @@ function AddCourse({
     <div className="plan-picker add" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Course code or title" aria-label="Find a course to add" />
       <ul>
-        {results.map((c) => {
-          const cr = credits(c.base) || 3
-          return (
-            <li key={c.base}>
-              <button disabled={cr > room} onClick={() => onAdd(c.base)} title={cr > room ? `Only ${room} cr open` : undefined}>
-                <span className="mono">{c.base}</span> {c.title} <span className="fine">{c.credits} cr</span>
-              </button>
-            </li>
-          )
-        })}
+        {results.map((c) => (
+          <li key={c.base}>
+            <button onClick={() => onAdd(c.base)}>
+              <span className="mono">{c.base}</span> {c.title} <span className="fine">{c.credits} cr</span>
+            </button>
+          </li>
+        ))}
         {words.length > 0 && results.length === 0 && <li className="fine">No courses match.</li>}
       </ul>
       <button className="plan-unpick" onClick={onClose}>

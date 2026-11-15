@@ -35,7 +35,6 @@ Prerequisites that can't be read as a clear rule are shown in the catalog's own 
 - **Corequisites** are shown, not checked.
 - **Conditions in prose** (permission of instructor, placement, "or equivalent"). 102 of 902 prerequisites are shown in the catalog's own words.
 - **Cross-listed twins** (e.g. ENG 214 / REST 214) aren't treated as the same course, because the catalog doesn't say which codes are twins and guessing could mark the wrong course as done.
-- **Courses that aren't in the 2026–27 catalog** can't be marked from the map.
 
 ## Run it
 

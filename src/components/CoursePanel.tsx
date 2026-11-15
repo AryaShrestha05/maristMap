@@ -1,6 +1,7 @@
+import { STATUS_LABEL } from '../lib/labels'
 import { CORE } from '../data/core'
 import { COURSE_BY_BASE, COURSES } from '../data'
-import { countsToward, hasUnparsedPrereq, historyCredits, pathTo, prereqCheck, status, unlocks, type Status } from '../lib/plan'
+import { countsToward, hasUnparsedPrereq, historyCredits, pathTo, prereqCheck, status, unlocks } from '../lib/plan'
 import type { Major, Prereq } from '../lib/types'
 
 interface Props {
@@ -12,13 +13,6 @@ interface Props {
   onToggleCart: (base: string) => void
   onOpen: (base: string) => void
   onClose: () => void
-}
-
-export const STATUS_LABEL: Record<Status, string> = {
-  taken: 'Taken',
-  available: 'Can take',
-  check: 'Check requirement',
-  locked: 'Prerequisites missing'
 }
 
 const coreName = (id: string): string => CORE.find((c) => c.id === id)?.name ?? id

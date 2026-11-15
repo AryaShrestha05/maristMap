@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import ThemeSwitch from './components/ThemeSwitch'
-import CoursePanel, { STATUS_LABEL } from './components/CoursePanel'
+import CoursePanel from './components/CoursePanel'
+import { STATUS_LABEL } from './lib/labels'
 import GridView from './components/GridView'
 import PlanView from './components/PlanView'
 import { freezePlan, proposePlan } from './lib/schedule'
@@ -24,28 +25,28 @@ const majorLabel = (id: string): string => {
 }
 
 export default function App() {
-  const [s, setS] = useState<SavedState>(() => loadState(MAJOR_IDS))
+  // a plan from a share link: opens straight away when nothing is saved here, otherwise it asks first
+  const [boot] = useState(() => {
+    const saved = loadState(MAJOR_IDS)
+    const shared = decodeShare(window.location.hash, MAJOR_IDS)
+    if (!shared) return { saved, incoming: null }
+    return saved.majorId === null ? { saved: { ...saved, ...shared }, incoming: null } : { saved, incoming: shared }
+  })
+  const [s, setS] = useState<SavedState>(boot.saved)
   const [picked, setPicked] = useState<string>(s.majorId ?? '')
   const [selected, setSelected] = useState<string | null>(null)
   const [focus, setFocus] = useState<string | null>(null)
   const [expandedCore, setExpandedCore] = useState<string | null>(null)
   const [drawer, setDrawer] = useState(false)
-  // a plan opened from a share link; asks first when it would replace a plan already here
-  const [incoming, setIncoming] = useState<SharedPlan | null>(() => {
-    const shared = decodeShare(window.location.hash, MAJOR_IDS)
-    // on the start screen there's no map to show a question on, so the shared plan just opens
-    return shared && s.majorId !== null ? shared : null
-  })
+  const [incoming, setIncoming] = useState<SharedPlan | null>(boot.incoming)
 
   // layout effect: the theme attribute must change before the graph reads the theme's colors
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = s.theme
   }, [s.theme])
   useEffect(() => saveState(s), [s])
-  // with no plan of their own, a shared plan simply opens
+  // the shared plan has been read: take it out of the address bar
   useEffect(() => {
-    const shared = decodeShare(window.location.hash, MAJOR_IDS)
-    if (shared && !incoming) setS((prev) => ({ ...prev, ...shared }))
     if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search)
   }, [])
 

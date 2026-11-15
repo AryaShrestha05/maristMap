@@ -22,6 +22,7 @@ export interface SimLink {
   source: SimNode
   target: SimNode
   kind: GEdge['kind']
+  active?: boolean
 }
 
 export const ROOT_RADIUS = 20
@@ -164,7 +165,7 @@ export function makeSimulation(
   for (const e of edges) {
     const s = byId.get(e.source)
     const t = byId.get(e.target)
-    if (s && t) simLinks.push({ source: s, target: t, kind: e.kind })
+    if (s && t) simLinks.push({ source: s, target: t, kind: e.kind, active: e.active })
   }
   const sim = forceSimulation<SimNode, SimLink>(simNodes)
     .force('x', forceX<SimNode>((n) => n.tx).strength((n) => (n.kind === 'hub' ? 0.5 : 0.25)))

@@ -77,6 +77,18 @@ interface View {
 }
 
 /** Neighbors of a node: itself plus everything one edge away. */
+/** Adds a dashed segment path (stroked by the caller). */
+function dash(g: Graphics, x1: number, y1: number, x2: number, y2: number, on: number, off: number): void {
+  const len = Math.hypot(x2 - x1, y2 - y1)
+  if (len === 0) return
+  const ux = (x2 - x1) / len
+  const uy = (y2 - y1) / len
+  for (let d = 0; d < len; d += on + off) {
+    const e = Math.min(d + on, len)
+    g.moveTo(x1 + ux * d, y1 + uy * d).lineTo(x1 + ux * e, y1 + uy * e)
+  }
+}
+
 function neighborhood(edges: GEdge[], id: string): Set<string> {
   const out = new Set([id])
   for (const e of edges) {
@@ -242,6 +254,20 @@ export default function GraphView(props: GraphViewProps) {
         if (near) stroke((l) => l.kind === 'member' && !lit(l), E.palette.edge, 0.3, w)
         // prerequisite lines only for what you're looking at: the hovered or open course and its path
         if (near) stroke((l) => l.kind === 'prereq' && lit(l), E.palette.prereq, 1, w * 2)
+        // a course that also counts toward a Core category: dashed while it could, solid once it does
+        const dashed = (pick: (l: SimLink) => boolean, alpha: number, width: number): void => {
+          let any = false
+          for (const l of E.links) {
+            if (!pick(l)) continue
+            dash(E.edgesG, l.source.x, l.source.y, l.target.x, l.target.y, 6 * w, 5 * w)
+            any = true
+          }
+          if (any) E.edgesG.stroke({ color: E.palette.taken, alpha, width })
+        }
+        dashed((l) => l.kind === 'core' && !l.active, near ? 0.08 : 0.4, w * 1.2)
+        if (near) dashed((l) => l.kind === 'core' && !l.active && lit(l), 0.95, w * 1.6)
+        stroke((l) => l.kind === 'core' && l.active === true && !lit(l), E.palette.taken, 0.15, w * 1.8)
+        stroke((l) => l.kind === 'core' && l.active === true && lit(l), E.palette.taken, 0.9, w * 2)
       }
       app.ticker.add(tick)
       setReady(true)

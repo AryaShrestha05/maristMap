@@ -115,6 +115,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  /** " by MATH 130 (in your major)" when a course on the map is what satisfies this Core circle */
+  const countingFor = (hubId: string): string => {
+    const e = graph?.edges.find((x) => x.kind === 'core' && x.active && x.target === hubId)
+    return e ? ` by ${e.source} (in your major)` : ''
+  }
+
   const describe = (n: GNode): { title: string; detail: string } => {
     if (n.kind === 'hub') {
       if (n.root)
@@ -127,7 +133,7 @@ export default function App() {
         title: n.label,
         detail: isCore
           ? n.satisfied
-            ? 'Satisfied · click to show approved courses'
+            ? `Satisfied${countingFor(n.id)} · click to show approved courses`
             : 'Not satisfied yet · click to show approved courses'
           : n.progress
             ? `${n.satisfied ? 'Satisfied · ' : ''}${n.progress.done} of ${n.progress.needed} ${n.progress.unit}`
@@ -136,9 +142,12 @@ export default function App() {
     }
     const c = COURSE_BY_BASE.get(n.id)
     const st = n.missing ? 'Not in the 2026–27 catalog' : STATUS_LABEL[n.status ?? 'locked']
+    const core = (graph?.edges ?? [])
+      .filter((e) => e.kind === 'core' && e.source === n.id)
+      .map((e) => `${CORE.find((k) => `core:${k.id}` === e.target)?.name}${e.active ? ' (counting)' : ''}`)
     return {
       title: c ? `${c.code} · ${c.title}` : n.id,
-      detail: `${st}${n.inCart ? ' · in cart' : ''}`
+      detail: `${st}${n.inCart ? ' · in cart' : ''}${core.length ? ` · also counts toward Core: ${core.join(', ')}` : ''}`
     }
   }
 
@@ -159,6 +168,11 @@ export default function App() {
       <span>
         <i className="dot cart" /> In cart
       </span>
+      {s.view === 'graph' && s.groupBy === 'requirements' && (
+        <span>
+          <i className="dash-key" /> Also counts toward Core
+        </span>
+      )}
     </div>
   )
 

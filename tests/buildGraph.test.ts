@@ -123,3 +123,32 @@ describe('buildGraph — section progress', () => {
     expect(after.nodes.find((n) => n.id === 'group:0')).toMatchObject({ satisfied: true })
   })
 })
+
+describe('buildGraph — major courses that also count toward Core', () => {
+  const both: Major = {
+    ...major,
+    groups: [{ title: 'Related', credits: '6', courses: ['MATH 205', 'ENG 170', 'CMPT 120'], notes: [] }]
+  }
+  const coreEdges = (g: ReturnType<typeof buildGraph>) =>
+    g.edges.filter((e) => e.kind === 'core').map((e) => `${e.source}>${e.target}${e.active ? ' active' : ''}`).sort()
+
+  test('a line from each such course to its Core category; faint until taken', () => {
+    const g = buildGraph({ major: both, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+    expect(coreEdges(g)).toEqual(['ENG 170>core:literature', 'MATH 205>core:math'])
+  })
+
+  test('taking the course makes its line active (it is what satisfies that category)', () => {
+    const g = buildGraph({ major: both, courses, taken: new Set(['ENG 170']), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+    expect(coreEdges(g)).toEqual(['ENG 170>core:literature active', 'MATH 205>core:math'])
+  })
+
+  test('no duplicate line when that Core category is expanded (the course is already its member)', () => {
+    const g = buildGraph({ major: both, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: 'literature' })
+    expect(coreEdges(g)).toEqual(['MATH 205>core:math'])
+  })
+
+  test('none when grouped by department (there are no Core circles)', () => {
+    const g = buildGraph({ major: both, courses, taken: new Set(), cart: new Set(), groupBy: 'departments', expandedCore: null })
+    expect(coreEdges(g)).toEqual([])
+  })
+})

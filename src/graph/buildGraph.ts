@@ -1,5 +1,5 @@
 import { CORE, categoriesFor } from '../data/core'
-import { coreProgress, groupProgress, status, type Status } from '../lib/plan'
+import { coreProgress, groupProgress, historyCredits, status, type Status } from '../lib/plan'
 import type { Course, Major, Prereq } from '../lib/types'
 
 export type GroupBy = 'requirements' | 'departments'
@@ -25,7 +25,10 @@ export interface GNode {
 export interface GEdge {
   source: string
   target: string
-  kind: 'member' | 'prereq'
+  /** member: section → course · prereq: prerequisite → course · core: course → a Core category it also counts toward */
+  kind: 'member' | 'prereq' | 'core'
+  /** core lines: the course is taken and is what satisfies that category */
+  active?: boolean
 }
 
 export interface GraphInput {
@@ -90,6 +93,15 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore,
       edges.push({ source: 'root:major', target: `group:${i}`, kind: 'member' })
     })
     const progress = new Map(coreProgress(taken, courses).map((p) => [p.categoryId, p.satisfiedBy]))
+    // courses on the map that also count toward a Core category: one course, two requirements
+    const hist = historyCredits(taken, courses)
+    for (const base of shown) {
+      if (!courses.has(base)) continue
+      for (const id of categoriesFor(base, hist)) {
+        if (memberOf.get(base)?.includes(`core:${id}`)) continue
+        edges.push({ source: base, target: `core:${id}`, kind: 'core', active: progress.get(id) === base })
+      }
+    }
     for (const c of CORE) {
       nodes.set(`core:${c.id}`, {
         id: `core:${c.id}`,

@@ -1,4 +1,4 @@
-import type { Prereq } from './types'
+import type { Course, Prereq } from './types'
 
 /** Catalog course code: prefix, number, optional catalog suffix letter (L = liberal arts, N = non). */
 export const CODE_RE = /\b([A-Z]{2,4}) ?(\d{3})[A-Z]?\b/
@@ -119,5 +119,66 @@ export function parsePrereq(text: string): Prereq | null {
   } catch (e) {
     if (e instanceof Ambiguous) return null
     throw e
+  }
+}
+
+
+export interface RawCourse {
+  coid: string
+  name: string
+  url: string
+  block: string
+}
+
+const LABELS = ['Offered When', 'Prerequisite(s)', 'Corequisite(s)', 'Recommended'] as const
+const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const LABEL_RE = new RegExp(`(${LABELS.map(escape).join('|')}):\\s*`, 'g')
+
+/** Splits a course block (all text run together) into its parts. Title comes from the link name, which is clean. */
+export function parseCourse(raw: RawCourse): Course {
+  const dash = raw.name.indexOf(' - ')
+  const code = (dash > 0 ? raw.name.slice(0, dash) : raw.name).trim()
+  const title = dash > 0 ? raw.name.slice(dash + 3).trim() : ''
+  const m = CODE_RE.exec(code)
+  const prefix = m ? m[1] : code.split(' ')[0]
+  const base = m ? `${m[1]} ${m[2]}` : code
+
+  let rest = raw.block.startsWith(raw.name) ? raw.block.slice(raw.name.length) : raw.block
+  const credit = /^\s*(\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?)\s*Credit\(s\)\s*/.exec(rest)
+  const credits = credit ? credit[1].replace(/\s+/g, '') : ''
+  if (credit) rest = rest.slice(credit[0].length)
+
+  let liberalArts: boolean | null = null
+  if (rest.startsWith('Non Liberal Arts')) {
+    liberalArts = false
+    rest = rest.slice('Non Liberal Arts'.length)
+  } else if (rest.startsWith('Liberal Arts')) {
+    liberalArts = true
+    rest = rest.slice('Liberal Arts'.length)
+  }
+
+  // labelled sections
+  const marks = [...rest.matchAll(LABEL_RE)].map((x) => ({ label: x[1], start: x.index!, end: x.index! + x[0].length }))
+  const description = (marks.length ? rest.slice(0, marks[0].start) : rest).trim()
+  const fields: Record<string, string> = {}
+  marks.forEach((mk, i) => {
+    const value = rest.slice(mk.end, i + 1 < marks.length ? marks[i + 1].start : undefined).trim()
+    if (value) fields[mk.label] = value
+  })
+
+  const prereqText = fields['Prerequisite(s)'] ?? null
+  return {
+    code,
+    base,
+    prefix,
+    title,
+    credits,
+    liberalArts,
+    description,
+    offered: fields['Offered When'] ?? null,
+    prereqText,
+    coreqText: fields['Corequisite(s)'] ?? null,
+    prereq: prereqText ? parsePrereq(prereqText) : null,
+    url: raw.url
   }
 }

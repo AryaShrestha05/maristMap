@@ -1,0 +1,154 @@
+<mxfile host="app.diagrams.net" agent="maristMap" version="24.0.0">
+  <diagram id="maristmap-architecture" name="How maristMap works">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="maristMap — how it works" style="text;html=1;fontSize=26;fontStyle=1;fontColor=#C8102E;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Built once from Marist's public catalog → runs entirely in the student's browser" style="text;html=1;fontSize=14;fontColor=#78716C;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="58" width="900" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Stage 1: sources ===================== -->
+        <mxCell id="src" value="1 · Marist sources (public)" style="swimlane;html=1;startSize=34;fontSize=14;fontStyle=1;fillColor=#FBEAED;strokeColor=#C8102E;fontColor=#1C1917;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="300" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="catalog" value="&lt;b&gt;2026–27 Undergraduate Catalog&lt;/b&gt;&lt;br&gt;catalog.marist.edu&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;1,557 course pages · 126 program pages&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="src">
+          <mxGeometry x="20" y="50" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="corepdf" value="&lt;b&gt;Core/LS Breadth lists&lt;/b&gt;&lt;br&gt;marist.edu/academics/core/breadth&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;8 official PDFs (Literature, History…)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="src">
+          <mxGeometry x="20" y="150" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="corepage" value="&lt;b&gt;Core/Liberal Studies page&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;category structure, 46 credits,&lt;br&gt;“cross-listed counts once” rule&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="src">
+          <mxGeometry x="20" y="250" width="260" height="66" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Stage 2: build ===================== -->
+        <mxCell id="build" value="2 · Data build (run once, by us)" style="swimlane;html=1;startSize=34;fontSize=14;fontStyle=1;fillColor=#F5F5F4;strokeColor=#A8A29E;fontColor=#1C1917;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="390" y="110" width="420" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="collect" value="&lt;b&gt;Collect in a real browser&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;site blocks scripts → fetched page by page,&lt;br&gt;resumable → data/raw/*.json&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="build">
+          <mxGeometry x="20" y="50" width="380" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="parsers" value="&lt;b&gt;scripts/build-data.ts&lt;/b&gt;&lt;br&gt;parseCourse → code, title, credits, offered, description&lt;br&gt;parsePrereq → “A and (B or C)” logic, &lt;i&gt;never guesses&lt;/i&gt;&lt;br&gt;parsePrograms → majors, concentrations, requirement groups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="build">
+          <mxGeometry x="20" y="130" width="380" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="datafiles" value="&lt;b&gt;src/data/courses.json&lt;/b&gt;  1,557 courses&lt;br&gt;&lt;b&gt;src/data/majors.json&lt;/b&gt;  82 majors &amp;amp; concentrations&lt;br&gt;&lt;b&gt;src/data/core.ts&lt;/b&gt;  Core categories + rules, each linked to its PDF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1917;strokeColor=#1C1917;fontColor=#FFFFFF;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="build">
+          <mxGeometry x="20" y="232" width="380" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Stage 3: the website ===================== -->
+        <mxCell id="web" value="3 · The website (runs in the student's browser, no server)" style="swimlane;html=1;startSize=34;fontSize=14;fontStyle=1;fillColor=#FFFFFF;strokeColor=#C8102E;strokeWidth=2;fontColor=#C8102E;rounded=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="1640" height="560" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="&lt;b&gt;Start screen&lt;/b&gt;&lt;br&gt;pick your major&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;fox · major dropdown · “Show my map”&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8102E;strokeColor=#A20D25;fontColor=#FFFFFF;fontSize=13;" vertex="1" parent="web">
+          <mxGeometry x="20" y="60" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="state" value="&lt;b&gt;Your saved state&lt;/b&gt; (localStorage)&lt;br&gt;major · courses taken · cart&lt;br&gt;theme (white/red) · view (graph/grid) · group by" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF9F7;strokeColor=#A8A29E;fontSize=12;" vertex="1" parent="web">
+          <mxGeometry x="300" y="60" width="300" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="logic" value="&lt;b&gt;Planning logic&lt;/b&gt; (src/lib/plan.ts)&lt;br&gt;status: taken · can take · check requirement · prerequisites missing&lt;br&gt;coreProgress: one course per Core category (cross-listed counts once)&lt;br&gt;countsToward · unlocks · cartWarnings · DegreeWorks code finder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBEAED;strokeColor=#C8102E;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="web">
+          <mxGeometry x="660" y="50" width="460" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="buildgraph" value="&lt;b&gt;buildGraph&lt;/b&gt;&lt;br&gt;Major root → requirement groups → courses&lt;br&gt;Core root → 10 Core categories&lt;br&gt;prerequisite lines between courses" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;" vertex="1" parent="web">
+          <mxGeometry x="1180" y="50" width="420" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- screens row -->
+        <mxCell id="sidebar" value="&lt;b&gt;Sidebar&lt;/b&gt;&lt;br&gt;&lt;br&gt;Cart&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;courses · credits · ⚠ missing prerequisites&lt;/font&gt;&lt;br&gt;&lt;br&gt;Core progress&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;“3 of 10” · each category ✓/○ · link to PDF&lt;/font&gt;&lt;br&gt;&lt;br&gt;Import from DegreeWorks&lt;br&gt;&lt;font color=&quot;#78716C&quot;&gt;paste audit → confirm → mark taken&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;" vertex="1" parent="web">
+          <mxGeometry x="20" y="230" width="300" height="300" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stage" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF9F7;strokeColor=#E7E5E4;arcSize=3;" vertex="1" parent="web">
+          <mxGeometry x="360" y="230" width="780" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="stage-label" value="&lt;b&gt;Map&lt;/b&gt; — Graph view (PixiJS + d3-force) or Grid view" style="text;html=1;fontSize=13;align=left;" vertex="1" parent="web">
+          <mxGeometry x="380" y="238" width="500" height="24" as="geometry" />
+        </mxCell>
+        <!-- mini graph: major cluster -->
+        <mxCell id="g-major" value="Major" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8102E;strokeColor=#C8102E;fontColor=#FFFFFF;fontStyle=1;fontSize=11;" vertex="1" parent="web">
+          <mxGeometry x="500" y="360" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="g-grp1" value="" style="ellipse;fillColor=#1C1917;strokeColor=#1C1917;" vertex="1" parent="web">
+          <mxGeometry x="430" y="300" width="22" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="g-grp2" value="" style="ellipse;fillColor=#1C1917;strokeColor=#1C1917;" vertex="1" parent="web">
+          <mxGeometry x="610" y="310" width="22" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="g-grp3" value="" style="ellipse;fillColor=#1C1917;strokeColor=#1C1917;" vertex="1" parent="web">
+          <mxGeometry x="560" y="460" width="22" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="g-c1" value="" style="ellipse;fillColor=#C8102E;strokeColor=#C8102E;" vertex="1" parent="web">
+          <mxGeometry x="400" y="282" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="g-c2" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#C8102E;strokeWidth=2;" vertex="1" parent="web">
+          <mxGeometry x="455" y="275" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="g-c3" value="" style="ellipse;fillColor=#C9C5C1;strokeColor=#C9C5C1;" vertex="1" parent="web">
+          <mxGeometry x="650" y="290" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="g-c4" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#B4AFAA;strokeWidth=2;" vertex="1" parent="web">
+          <mxGeometry x="640" y="340" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="g-c5" value="" style="ellipse;fillColor=#C9C5C1;strokeColor=#C9C5C1;" vertex="1" parent="web">
+          <mxGeometry x="595" y="495" width="12" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="ge1" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-major" target="g-grp1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge2" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-major" target="g-grp2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge3" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-major" target="g-grp3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge4" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-grp1" target="g-c1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge5" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-grp1" target="g-c2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge6" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-grp2" target="g-c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge7" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-grp2" target="g-c4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ge8" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-grp3" target="g-c5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="gp1" value="prerequisite" style="endArrow=classic;strokeColor=#C8102E;dashed=0;fontSize=10;fontColor=#C8102E;" edge="1" parent="web" source="g-c1" target="g-c3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <!-- mini graph: core wheel -->
+        <mxCell id="g-core" value="Core" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8102E;strokeColor=#C8102E;fontColor=#FFFFFF;fontStyle=1;fontSize=11;" vertex="1" parent="web">
+          <mxGeometry x="900" y="360" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="k1" value="" style="ellipse;fillColor=#C8102E;strokeColor=#C8102E;" vertex="1" parent="web"><mxGeometry x="840" y="300" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="k2" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#1C1917;strokeWidth=2;" vertex="1" parent="web"><mxGeometry x="930" y="282" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="k3" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#1C1917;strokeWidth=2;" vertex="1" parent="web"><mxGeometry x="1010" y="330" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="k4" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#1C1917;strokeWidth=2;" vertex="1" parent="web"><mxGeometry x="1010" y="420" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="k5" value="" style="ellipse;fillColor=#C8102E;strokeColor=#C8102E;" vertex="1" parent="web"><mxGeometry x="930" y="470" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="k6" value="" style="ellipse;fillColor=#FFFFFF;strokeColor=#1C1917;strokeWidth=2;" vertex="1" parent="web"><mxGeometry x="840" y="440" width="18" height="18" as="geometry" /></mxCell>
+        <mxCell id="ke1" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ke2" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ke3" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ke4" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ke5" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ke6" style="endArrow=none;strokeColor=#A8A29E;" edge="1" parent="web" source="g-core" target="k6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="legend" value="● taken   ○ can take (red ring)   ○ check requirement (gray ring)   ● prerequisites missing (gray)&lt;br&gt;Core circles fill in as categories are satisfied · click one to see its approved courses" style="text;html=1;fontSize=11;fontColor=#78716C;align=left;" vertex="1" parent="web">
+          <mxGeometry x="380" y="500" width="740" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="panel" value="&lt;b&gt;Course panel&lt;/b&gt;&lt;br&gt;&lt;br&gt;code · title · status · credits · offered&lt;br&gt;[Mark as taken] [Add to cart]&lt;br&gt;&lt;br&gt;Prerequisites ✓ / ○ (or catalog wording)&lt;br&gt;Counts toward: major group · Core category&lt;br&gt;⚠ cross-listed counts once&lt;br&gt;Unlocks: next courses&lt;br&gt;Description · link to catalog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E7E5E4;fontSize=12;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;" vertex="1" parent="web">
+          <mxGeometry x="1180" y="230" width="420" height="300" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== arrows ===================== -->
+        <mxCell id="a1" value="fetch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;fontSize=11;" edge="1" parent="1" source="catalog" target="collect"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2" value="transcribed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;fontSize=11;" edge="1" parent="1" source="corepdf" target="datafiles"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;" edge="1" parent="1" source="corepage" target="datafiles"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;" edge="1" parent="1" source="collect" target="parsers"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;" edge="1" parent="1" source="parsers" target="datafiles"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a5" value="shipped with the site" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#C8102E;strokeWidth=2;fontSize=11;fontColor=#C8102E;" edge="1" parent="1" source="datafiles" target="logic"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a6" value="chosen major" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;fontSize=11;" edge="1" parent="web" source="start" target="state"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;" edge="1" parent="web" source="state" target="logic"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;" edge="1" parent="web" source="logic" target="buildgraph"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a9" value="dots &amp; lines" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;fontSize=11;" edge="1" parent="web" source="buildgraph" target="stage"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a10" value="click a course" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#78716C;fontSize=11;" edge="1" parent="web" source="stage" target="panel"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a11" value="mark taken · add to cart" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#C8102E;dashed=1;fontSize=11;fontColor=#C8102E;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="web" source="panel" target="state"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1390" y="190" /><mxPoint x="640" y="190" /><mxPoint x="640" y="128" /></Array></mxGeometry></mxCell>
+        <mxCell id="a12" value="paste DegreeWorks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=classic;strokeColor=#C8102E;dashed=1;fontSize=11;fontColor=#C8102E;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="web" source="sidebar" target="state"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="170" y="190" /><mxPoint x="375" y="190" /></Array></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

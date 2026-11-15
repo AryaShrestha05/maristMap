@@ -175,3 +175,16 @@ describe('parsePrograms — concentration names', () => {
     expect(named('Concentration in Animation (select 5)')).toBe('Animation')
   })
 })
+
+describe('parsePrograms — section titles', () => {
+  test('a trailing "(12 Credits)" becomes the credit count', () => {
+    const [m] = parsePrograms(
+      [{ poid: '1', name: 'Finance, B.S.', url: 'u', items: [
+        { type: 'heading', level: 2, text: 'Required Elective Courses (12 Credits)' },
+        { type: 'course', text: 'CMPT 120L - x', coid: '1' }
+      ] }],
+      byCoid
+    )
+    expect(m.groups[0]).toMatchObject({ title: 'Required Elective Courses', credits: '12' })
+  })
+})

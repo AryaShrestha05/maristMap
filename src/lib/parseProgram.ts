@@ -30,6 +30,8 @@ const slug = (s: string): string =>
 function splitTitle(text: string): { title: string; credits: string | null } {
   const m = /^(.*?):\s*(\d+(?:\s*-\s*\d+)?)\s*(?:cr|credits?)\.?\s*$/i.exec(text)
   if (m) return { title: m[1].trim(), credits: m[2].replace(/\s+/g, '') }
+  const paren = /^(.*?)\s*\((\d+(?:\s*-\s*\d+)?)\s*(?:cr|credits?)\.?\)\s*$/i.exec(text)
+  if (paren) return { title: paren[1].trim(), credits: paren[2].replace(/\s+/g, '') }
   return { title: text.replace(/:$/, '').trim(), credits: null }
 }
 

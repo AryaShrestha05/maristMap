@@ -55,23 +55,24 @@
 }
 
 [data-theme='red'] {
-  --bg: var(--marist-red);
-  --fg: #ffffff;
-  --muted: rgba(255, 255, 255, 0.72);
-  --accent: #ffffff;
-  --nav-bg: var(--marist-red-deep);
+  /* deep wine for large surfaces: still red, easy on the eyes; Marist red stays on the navbar */
+  --bg: #2b0a10;
+  --fg: #f7e9eb;
+  --muted: rgba(247, 233, 235, 0.62);
+  --accent: #ff8a99;
+  --nav-bg: var(--marist-red);
   --nav-fg: #ffffff;
-  --grid-dot: rgba(255, 255, 255, 0.12);
-  --node-root: #ffffff;
-  --node-hub: #ffffff;
-  --node-taken: #ffffff;
-  --node-available: #ffffff;
-  --node-locked: rgba(255, 255, 255, 0.38);
-  --edge: rgba(255, 255, 255, 0.22);
-  --edge-prereq: rgba(255, 255, 255, 0.6);
-  --label: #ffffff;
-  --halo: var(--marist-red);
-  color-scheme: light;
+  --grid-dot: rgba(247, 233, 235, 0.06);
+  --node-root: #ff4d63;
+  --node-hub: #f7e9eb;
+  --node-taken: #ff4d63;
+  --node-available: #ff8a99;
+  --node-locked: rgba(247, 233, 235, 0.28);
+  --edge: rgba(247, 233, 235, 0.14);
+  --edge-prereq: rgba(255, 138, 153, 0.75);
+  --label: #f7e9eb;
+  --halo: #2b0a10;
+  color-scheme: dark;
 }
 
 * {
@@ -1356,4 +1357,16 @@ h3 {
   font-size: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* ---------- start screen cursor grid ---------- */
+.start-cursor {
+  position: absolute;
+  inset: 0;
+}
+.start-inner {
+  position: relative;
+  height: 100%;
+  display: grid;
+  place-items: center;
 }

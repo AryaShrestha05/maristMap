@@ -274,7 +274,7 @@ export default function GraphView(props: GraphViewProps) {
           }
           if (any) E.edgesG.stroke({ color: E.palette.taken, alpha, width })
         }
-        dashed((l) => l.kind === 'core' && !l.active, near ? 0.08 : 0.4, w * 1.2)
+        // dashed "could also count" lines only for what you're looking at, like prerequisite lines
         if (near) dashed((l) => l.kind === 'core' && !l.active && lit(l), 0.95, w * 1.6)
         stroke((l) => l.kind === 'core' && l.active === true && !lit(l), E.palette.taken, 0.15, w * 1.8)
         stroke((l) => l.kind === 'core' && l.active === true && lit(l), E.palette.taken, 0.9, w * 2)

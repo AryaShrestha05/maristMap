@@ -76,10 +76,12 @@ export function targetPositions(nodes: GNode[], edges: GEdge[]): Map<string, Pt>
     // room for the ring on both sides plus its label underneath
     const spans = sizes.map((r) => 2 * r + (r > 14 ? 110 : 70))
     const total = spans.reduce((a, b) => a + b, 0)
-    const R = Math.max(120, total / (2 * Math.PI), groups.length === 1 ? 0 : Math.max(...sizes, 0) + 90)
-    let angle = -Math.PI / 2
+    // two or three sections: fan them in an arc above the root, so the root's name below stays clear
+    const arc = rootId && groups.length > 1 && groups.length <= 3 ? Math.PI * 0.75 : 2 * Math.PI
+    const R = Math.max(120, total / arc, groups.length === 1 ? 0 : Math.max(...sizes, 0) + ROOT_RADIUS + 110)
+    let angle = arc < 2 * Math.PI ? -Math.PI / 2 - arc / 2 : -Math.PI / 2
     groups.forEach((g, i) => {
-      const share = (spans[i] / total) * 2 * Math.PI
+      const share = (spans[i] / total) * arc
       const a = angle + share / 2
       angle += share
       const hx = cx + R * Math.cos(a)

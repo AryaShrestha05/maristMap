@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { COURSE_BY_BASE } from '../data'
 import { CODE_RE } from '../lib/parseCourse'
 import { hasUnparsedPrereq } from '../lib/plan'
@@ -46,6 +46,17 @@ const credits = (base: string): number => Number.parseFloat(COURSE_BY_BASE.get(b
 export default function PlanView({ plan, taken, start, moved, selectedId, onStart, onMove, onUndoMoves, onOpen }: Props) {
   const board = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string | null>(null)
+  /** clicked card: its chain stays lit while scrolling, until clicked again, empty space, or Esc */
+  const [stuck, setStuck] = useState<string | null>(null)
+  const focus = stuck ?? hover
+  const stick = (id: string): void => setStuck((cur) => (cur === id ? null : id))
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setStuck(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const [dragging, setDragging] = useState<string | null>(null)
   const [over, setOver] = useState<number | null>(null)
   const [openSlot, setOpenSlot] = useState<string | null>(null)
@@ -84,8 +95,8 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
 
   // the hovered card's whole chain: everything before it and everything after it
   const chain = useMemo(() => {
-    if (!hover) return null
-    const set = new Set([hover])
+    if (!focus) return null
+    const set = new Set([focus])
     const walk = (id: string, dir: 'up' | 'down'): void => {
       for (const l of links) {
         const next = dir === 'up' ? (l.to === id ? l.from : null) : l.from === id ? l.to : null
@@ -95,10 +106,10 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         }
       }
     }
-    walk(hover, 'up')
-    walk(hover, 'down')
+    walk(focus, 'up')
+    walk(focus, 'down')
     return set
-  }, [hover, links])
+  }, [focus, links])
 
   // while dragging a course: the semesters it can go in without breaking a prerequisite
   const allowed = useMemo(() => {
@@ -168,22 +179,25 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
   }, [plan, links, openSlot])
 
   // drag empty space to pan the board, like the map
-  const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const pan = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null)
   const [panning, setPanning] = useState(false)
   const onPanStart = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('[data-card], button, select, a')) return
     const el = board.current!
-    pan.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop }
+    pan.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false }
     el.setPointerCapture?.(e.pointerId)
     setPanning(true)
   }
   const onPanMove = (e: React.PointerEvent<HTMLDivElement>): void => {
     const p = pan.current
     if (!p) return
+    if (Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) > 4) p.moved = true
     board.current!.scrollLeft = p.left - (e.clientX - p.x)
     board.current!.scrollTop = p.top - (e.clientY - p.y)
   }
   const onPanEnd = (): void => {
+    // a click on empty space (not a drag) lets go of the selected card
+    if (pan.current && !pan.current.moved) setStuck(null)
     pan.current = null
     setPanning(false)
   }
@@ -208,7 +222,8 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
       i.kind === 'slot' ? 'slot' : '',
       problems ? 'bad' : '',
       lit ? '' : 'dim',
-      hover === i.id ? 'hot' : '',
+      focus === i.id ? 'hot' : '',
+      stuck === i.id ? 'stuck' : '',
       selectedId === i.id ? 'selected' : '',
       dragging === i.id ? 'lifting' : ''
     ].join(' ')
@@ -234,10 +249,16 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
         }}
         onMouseEnter={() => !dragging && setHover(i.id)}
         onMouseLeave={() => setHover((h) => (h === i.id ? null : h))}
-        onClick={() => (i.kind === 'course' ? onOpen(i.id) : setOpenSlot((o) => (o === i.id ? null : i.id)))}
+        aria-pressed={stuck === i.id}
+        onClick={() => {
+          stick(i.id)
+          if (i.kind === 'course') onOpen(i.id)
+          else setOpenSlot((o) => (o === i.id ? null : i.id))
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
+            stick(i.id)
             if (i.kind === 'course') onOpen(i.id)
             else setOpenSlot((o) => (o === i.id ? null : i.id))
           }
@@ -337,7 +358,10 @@ export default function PlanView({ plan, taken, start, moved, selectedId, onStar
                   key={b}
                   data-card={`done:${b}`}
                   className={`plan-done mono ${chain && !chain.has(`done:${b}`) ? 'dim' : ''}`}
-                  onClick={() => onOpen(b)}
+                  onClick={() => {
+                    stick(`done:${b}`)
+                    onOpen(b)
+                  }}
                   onMouseEnter={() => setHover(`done:${b}`)}
                   onMouseLeave={() => setHover(null)}
                 >

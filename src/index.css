@@ -1856,3 +1856,17 @@ h3 {
   cursor: grabbing;
   user-select: none;
 }
+.plan-card.stuck {
+  box-shadow: var(--shadow-2), inset 0 0 0 2px var(--marist-red);
+}
+.plan-card.stuck::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--marist-red);
+  box-shadow: 0 0 0 2px var(--paper);
+}

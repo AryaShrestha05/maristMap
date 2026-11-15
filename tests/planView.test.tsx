@@ -83,3 +83,34 @@ describe('PlanView', () => {
     expect(slot.querySelectorAll('.plan-options button').length).toBeGreaterThan(0)
   })
 })
+
+describe('clicking a card keeps its chain lit', () => {
+  const lit = (c: HTMLElement) => [...c.querySelectorAll('.plan-card:not(.dim)')].map((e) => (e as HTMLElement).dataset.card)
+
+  test('stays after the pointer leaves and over other cards; click again, empty space or Esc lets go', () => {
+    const { container } = view()
+    const card = container.querySelector('[data-card="CMPT 220"]') as HTMLElement
+    fireEvent.click(card)
+    const chain = lit(container)
+    expect(chain).toContain('CMPT 221')
+    expect(chain).not.toContain('core:history')
+
+    fireEvent.mouseLeave(card)
+    fireEvent.mouseEnter(container.querySelector('[data-card="core:history"]')!)
+    expect(lit(container)).toEqual(chain)
+    fireEvent.mouseLeave(container.querySelector('[data-card="core:history"]')!)
+
+    fireEvent.click(card)
+    expect(container.querySelectorAll('.plan-card.dim')).toHaveLength(0)
+
+    fireEvent.click(card)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(container.querySelectorAll('.plan-card.dim')).toHaveLength(0)
+
+    fireEvent.click(card)
+    const board = container.querySelector('.plan-board')!
+    fireEvent.pointerDown(board, { button: 0, clientX: 10, clientY: 10, pointerId: 2 })
+    fireEvent.pointerUp(board, { clientX: 10, clientY: 10, pointerId: 2 })
+    expect(container.querySelectorAll('.plan-card.dim')).toHaveLength(0)
+  })
+})

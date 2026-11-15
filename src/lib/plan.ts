@@ -206,3 +206,24 @@ export function groupProgress(
   const needed = Math.min(group.pick?.count ?? group.courses.length, group.courses.length)
   return { done: takenHere.length, needed, unit: 'courses', satisfied: takenHere.length >= needed }
 }
+
+const NEEDED_LINE = /\b(still needed|needed:|you (still )?need|class(es)? in|credits? in|not (yet )?(taken|completed))\b/i
+const IN_PROGRESS_LINE = /\b(in[- ]progress|registered|currently enrolled|planned|pre-?registered)\b/i
+/** DegreeWorks' grade column shows "IP" for in-progress; uppercase only, so it can't match the letters "ip" */
+const IP_GRADE = /\bIP\b/
+
+/**
+ * Reads pasted DegreeWorks text line by line: courses on "Still needed" lines are ignored, courses on
+ * in-progress lines are kept apart, the rest count as completed. Only real catalog courses are returned.
+ */
+export function classifyAudit(text: string, courses: Map<string, Course>): { completed: string[]; inProgress: string[] } {
+  const completed: string[] = []
+  const inProgress: string[] = []
+  for (const line of text.split(/\r?\n/)) {
+    if (NEEDED_LINE.test(line)) continue
+    const codes = extractCodes(line, courses)
+    const list = IN_PROGRESS_LINE.test(line) || IP_GRADE.test(line) ? inProgress : completed
+    for (const code of codes) if (!list.includes(code)) list.push(code)
+  }
+  return { completed, inProgress: inProgress.filter((c) => !completed.includes(c)) }
+}

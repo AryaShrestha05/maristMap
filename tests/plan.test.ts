@@ -157,3 +157,27 @@ describe('groupProgress', () => {
     expect(groupProgress(g(['CMPT 120'], { count: 3 }), taken(), courses).needed).toBe(1)
   })
 })
+
+import { classifyAudit } from '../src/lib/plan'
+
+describe('classifyAudit (DegreeWorks paste)', () => {
+  const text = [
+    'Completed: CMPT 120L Introduction to Programming A 4',
+    'Still needed: 1 Class in CMPT 220 or CMPT 221',
+    'MATH 205L Discrete Mathematics IP 4 Spring 2027',
+    'CMPT 221L Software Development II In-progress',
+    'CMPT 120L again'
+  ].join('\n')
+
+  test('completed courses are found; in-progress kept separate; still-needed lines ignored', () => {
+    expect(classifyAudit(text, courses)).toEqual({ completed: ['CMPT 120'], inProgress: ['MATH 205', 'CMPT 221'] })
+  })
+
+  test('a course seen as completed anywhere wins over in-progress', () => {
+    expect(classifyAudit('MATH 205L IP\nMATH 205L B+ 4', courses)).toEqual({ completed: ['MATH 205'], inProgress: [] })
+  })
+
+  test('plain lists of codes count as completed', () => {
+    expect(classifyAudit('CMPT 120, CMPT 220', courses)).toEqual({ completed: ['CMPT 120', 'CMPT 220'], inProgress: [] })
+  })
+})

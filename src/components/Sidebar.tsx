@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CORE, CORE_CAUTION } from '../data/core'
 import { COURSE_BY_BASE } from '../data'
-import { cartWarnings, coreProgress, extractCodes } from '../lib/plan'
+import { cartWarnings, classifyAudit, coreProgress } from '../lib/plan'
 
 /** Plan column: cart, Core progress, DegreeWorks import. */
 export default function Sidebar({
@@ -175,9 +175,15 @@ export default function Sidebar({
 
 function ImportBox({ taken, onMarkTaken }: { taken: Set<string>; onMarkTaken: (bases: string[]) => void }) {
   const [text, setText] = useState('')
-  const [unchecked, setUnchecked] = useState<Set<string>>(new Set())
-  const found = text ? extractCodes(text, COURSE_BY_BASE).filter((b) => !taken.has(b)) : []
-  const selected = found.filter((b) => !unchecked.has(b))
+  /** user's changes to the default selection: completed start checked, in-progress start unchecked */
+  const [toggled, setToggled] = useState<Set<string>>(new Set())
+  const audit = text ? classifyAudit(text, COURSE_BY_BASE) : { completed: [], inProgress: [] }
+  const rows = [
+    ...audit.completed.filter((b) => !taken.has(b)).map((b) => ({ base: b, inProgress: false })),
+    ...audit.inProgress.filter((b) => !taken.has(b)).map((b) => ({ base: b, inProgress: true }))
+  ]
+  const isChecked = (r: { base: string; inProgress: boolean }): boolean => (r.inProgress ? toggled.has(r.base) : !toggled.has(r.base))
+  const selected = rows.filter(isChecked).map((r) => r.base)
   return (
     <details className="import side-section">
       <summary>Import from DegreeWorks</summary>
@@ -188,27 +194,29 @@ function ImportBox({ taken, onMarkTaken }: { taken: Set<string>; onMarkTaken: (b
           aria-label="DegreeWorks audit text"
           onChange={(e) => {
             setText(e.target.value)
-            setUnchecked(new Set())
+            setToggled(new Set())
           }}
         />
-        {text && found.length === 0 && <p className="fine">No new catalog courses found in that text.</p>}
-        {found.length > 0 && (
+        {text && rows.length === 0 && <p className="fine">No new completed or in-progress catalog courses found.</p>}
+        {rows.length > 0 && (
           <>
+            <p className="fine">“Still needed” lines are skipped. In-progress courses start unchecked.</p>
             <ul className="checks">
-              {found.map((b) => (
-                <li key={b}>
+              {rows.map((r) => (
+                <li key={r.base}>
                   <label>
                     <input
                       type="checkbox"
-                      checked={!unchecked.has(b)}
+                      checked={isChecked(r)}
                       onChange={() => {
-                        const next = new Set(unchecked)
-                        if (next.has(b)) next.delete(b)
-                        else next.add(b)
-                        setUnchecked(next)
+                        const next = new Set(toggled)
+                        if (next.has(r.base)) next.delete(r.base)
+                        else next.add(r.base)
+                        setToggled(next)
                       }}
                     />
-                    <span className="mono">{b}</span> {COURSE_BY_BASE.get(b)?.title}
+                    <span className="mono">{r.base}</span> {COURSE_BY_BASE.get(r.base)?.title}
+                    {r.inProgress && <span className="tag-ip">in progress</span>}
                   </label>
                 </li>
               ))}
@@ -219,7 +227,7 @@ function ImportBox({ taken, onMarkTaken }: { taken: Set<string>; onMarkTaken: (b
               onClick={() => {
                 onMarkTaken(selected)
                 setText('')
-                setUnchecked(new Set())
+                setToggled(new Set())
               }}
             >
               Mark {selected.length} as taken

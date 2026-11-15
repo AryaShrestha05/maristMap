@@ -188,3 +188,57 @@ describe('parsePrograms — section titles', () => {
     expect(m.groups[0]).toMatchObject({ title: 'Required Elective Courses', credits: '12' })
   })
 })
+
+import { detectPick } from '../src/lib/parseProgram'
+
+describe('detectPick — "choose N" sections', () => {
+  test('counts in words and digits', () => {
+    expect(detectPick('Electives', ['Choose two from (no duplicate from major)'])).toEqual({ count: 2 })
+    expect(detectPick('Choose one from:', [])).toEqual({ count: 1 })
+    expect(detectPick('Electives', ['Choose 2 courses from'])).toEqual({ count: 2 })
+    expect(detectPick('Select one', [])).toEqual({ count: 1 })
+    expect(detectPick('Software Development: Choice of either', [])).toEqual({ count: 1 })
+    expect(detectPick('1. Physics Option - Any two of the following three physics lecture/lab combinations', [])).toEqual({ count: 2 })
+    expect(detectPick('One course selected from Critical Perspectives on Race', [])).toEqual({ count: 1 })
+    expect(detectPick('Electives', ['Select any three, in any combination: 3 cr'])).toEqual({ count: 3 })
+  })
+
+  test('credit amounts', () => {
+    expect(detectPick('Electives', ['Choose 9 credits from:'])).toEqual({ credits: 9 })
+  })
+
+  test('no rule means every listed course is required', () => {
+    expect(detectPick('Computer Science Foundation Courses', ['Note: A minimum of 60 credits in Liberal Arts is required.'])).toBeNull()
+  })
+})
+
+describe('parsePrograms — credit totals as the rule', () => {
+  test('a section titled with fewer credits than its courses add up to needs only those credits', () => {
+    const [m] = parsePrograms(
+      [{ poid: '7', name: 'Finance, B.S.', url: 'u', items: [
+        { type: 'heading', level: 2, text: 'Required Elective Courses (6 Credits)' },
+        { type: 'course', text: 'CMPT 120L - x', coid: '1' },
+        { type: 'course', text: 'CMPT 220L - x', coid: '2' },
+        { type: 'course', text: 'BUS 100L - x', coid: '3' }
+      ] }],
+      byCoid
+    )
+    expect(m.groups[0].pick).toEqual({ credits: 6 })
+  })
+
+  test('a section whose credits equal its courses keeps "all required"', () => {
+    const [m] = parsePrograms(
+      [{ poid: '8', name: 'Finance, B.S.', url: 'u', items: [
+        { type: 'heading', level: 2, text: 'Core: 6 cr' },
+        { type: 'course', text: 'CMPT 120L - x', coid: '1' },
+        { type: 'course', text: 'CMPT 220L - x', coid: '2' }
+      ] }],
+      byCoid
+    )
+    expect(m.groups[0].pick).toBeUndefined()
+  })
+
+  test('"Choice of …" titles mean pick one', () => {
+    expect(detectPick('Software Development: Choice of approved upper-level CMPT courses including', [])).toEqual({ count: 1 })
+  })
+})

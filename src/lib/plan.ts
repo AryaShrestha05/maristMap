@@ -1,6 +1,6 @@
 import { CODE_RE } from './parseCourse'
 import { CORE, categoriesFor } from '../data/core'
-import type { Course, Major, Prereq } from './types'
+import type { Course, Major, Prereq, ReqGroup } from './types'
 
 /** check = only conditions this app can't verify (e.g. "Junior standing") stand in the way */
 export type Status = 'taken' | 'available' | 'check' | 'locked'
@@ -190,4 +190,19 @@ export function pathTo(target: string, taken: Set<string>, courses: Map<string, 
   if (!t) return []
   needPrereqsOf(target, new Set([target]))
   return steps
+}
+
+/** How far along a major section is, honoring its "choose N courses / N credits" rule. */
+export function groupProgress(
+  group: ReqGroup,
+  taken: Set<string>,
+  courses: Map<string, Course>
+): { done: number; needed: number; unit: 'courses' | 'credits'; satisfied: boolean } {
+  const takenHere = group.courses.filter((b) => taken.has(b))
+  if (group.pick?.credits) {
+    const done = takenHere.reduce((n, b) => n + (Number.parseFloat(courses.get(b)?.credits ?? '') || 0), 0)
+    return { done, needed: group.pick.credits, unit: 'credits', satisfied: done >= group.pick.credits }
+  }
+  const needed = Math.min(group.pick?.count ?? group.courses.length, group.courses.length)
+  return { done: takenHere.length, needed, unit: 'courses', satisfied: takenHere.length >= needed }
 }

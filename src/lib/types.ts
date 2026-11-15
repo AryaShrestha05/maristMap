@@ -31,6 +31,8 @@ export interface ReqGroup {
   courses: string[]
   /** instruction text from the catalog, verbatim ("Choose one of the following") */
   notes: string[]
+  /** "choose N" rule read from the title or notes; absent = every listed course is required */
+  pick?: { count?: number; credits?: number }
 }
 
 export interface Major {

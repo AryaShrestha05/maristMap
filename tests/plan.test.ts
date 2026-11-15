@@ -139,3 +139,21 @@ describe('countsToward', () => {
     expect(countsToward('REST 214', m, 0)).toEqual({ groups: [], core: ['ethics', 'literature'], crossListedWarning: true })
   })
 })
+
+import { groupProgress } from '../src/lib/plan'
+
+describe('groupProgress', () => {
+  const g = (courses: string[], pick?: { count?: number; credits?: number }) => ({ title: 'G', credits: null, courses, notes: [], pick })
+  test('all required by default', () => {
+    expect(groupProgress(g(['CMPT 120', 'CMPT 220']), taken('CMPT 120'), courses)).toEqual({ done: 1, needed: 2, unit: 'courses', satisfied: false })
+  })
+  test('choose N courses', () => {
+    expect(groupProgress(g(['CMPT 120', 'CMPT 220', 'MATH 205'], { count: 1 }), taken('MATH 205'), courses)).toEqual({ done: 1, needed: 1, unit: 'courses', satisfied: true })
+  })
+  test('N credits', () => {
+    expect(groupProgress(g(['CMPT 120', 'CMPT 220', 'MATH 205'], { credits: 6 }), taken('CMPT 120'), courses)).toEqual({ done: 3, needed: 6, unit: 'credits', satisfied: false })
+  })
+  test('a pick larger than the list is capped at the list', () => {
+    expect(groupProgress(g(['CMPT 120'], { count: 3 }), taken(), courses).needed).toBe(1)
+  })
+})

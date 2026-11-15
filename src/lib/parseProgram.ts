@@ -20,6 +20,27 @@ const SKIP_SECTION_RE = /core\/liberal studies|recommended program sequence/i
 /** A short line ending in a colon that names a sub-section, e.g. "Course Requirements in Related Fields:" */
 const SUBHEAD_RE = /^[A-Z][^.:]{3,80}:$/
 
+const WORD_NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+const NUM = '(one|two|three|four|five|six|seven|eight|nine|ten|\\d+)'
+const toNum = (w: string): number => WORD_NUMBERS[w.toLowerCase()] ?? Number(w)
+
+/** Reads a "choose N" rule from a section's title and notes. null = every listed course is required. */
+export function detectPick(title: string, notes: string[]): { count?: number; credits?: number } | null {
+  for (const text of [title, ...notes]) {
+    const credits = new RegExp(`\\b(?:choose|select)\\s+${NUM}\\s+credits?\\b`, 'i').exec(text)
+    if (credits) return { credits: toNum(credits[1]) }
+    if (/\bchoice of either\b/i.test(text)) return { count: 1 }
+    if (/^(?:[^:]*:\s*)?choice of\b/i.test(text)) return { count: 1 }
+    const pick = new RegExp(`\\b(?:choose|select|pick)\\s+(?:any\\s+)?${NUM}\\b`, 'i').exec(text)
+    if (pick) return { count: toNum(pick[1]) }
+    const any = new RegExp(`\\bany\\s+${NUM}\\s+of\\s+the\\s+following\\b`, 'i').exec(text)
+    if (any) return { count: toNum(any[1]) }
+    const lead = new RegExp(`^${NUM}\\s+courses?\\s+(?:selected|with|from|in)\\b`, 'i').exec(text.replace(/^.*?:\s*/, ''))
+    if (lead) return { count: toNum(lead[1]) }
+  }
+  return null
+}
+
 const slug = (s: string): string =>
   s
     .toLowerCase()
@@ -50,6 +71,7 @@ interface Section {
 /** Turns catalog program pages into majors (one per concentration), keeping instructions verbatim. */
 export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): Major[] {
   const majors: Major[] = []
+  const creditsByBase = new Map([...byCoid.values()].map((c) => [c.base, c.credits]))
   for (const p of raw) {
     const dm = DEGREE_RE.exec(p.name)
     if (!dm || /minor|certificate/i.test(p.name)) continue
@@ -125,6 +147,16 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
       }
     }
 
+    for (const sec of sections) {
+      const pick = detectPick(sec.group.title, sec.group.notes)
+      if (pick) sec.group.pick = pick
+      else if (sec.group.credits) {
+        // "Required Elective Courses (12 Credits)" listing 16 courses: the credit total is the rule
+        const need = Number.parseInt(sec.group.credits, 10)
+        const listed = sec.group.courses.reduce((n, b) => n + (Number.parseFloat(creditsByBase.get(b) ?? '') || 0), 0)
+        if (need > 0 && listed > need) sec.group.pick = { credits: need }
+      }
+    }
     const withCourses = sections.filter((s) => s.group.courses.length > 0)
     if (withCourses.length === 0) continue
     const shared = withCourses.filter((s) => !s.concentration).map((s) => s.group)

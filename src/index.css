@@ -1318,11 +1318,6 @@ h3 {
   flex-wrap: wrap;
   gap: 6px;
 }
-.start-over .linkish.danger {
-  color: var(--marist-red);
-  font-weight: 600;
-}
-
 /* ---------- taken summary + reset ---------- */
 .taken-bar {
   display: flex;

@@ -348,15 +348,6 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
       <header className="plan-head">
         <div className="plan-title">
           <h2>{edited ? 'Your plan' : 'Proposed plan'}</h2>
-          <p>
-            Generated from the catalog’s prerequisites, terms offered and your major’s rules. Not an official Marist sequence.
-          </p>
-          <p className="plan-how">
-            <span>Drag a course to another semester</span>
-            <span>Click a “Choose” card to pick a course</span>
-            <span>+ Add course for electives</span>
-            <span>16 credits a semester at most</span>
-          </p>
         </div>
         <div className="plan-controls">
           <label className="plan-start">

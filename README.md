@@ -9,12 +9,14 @@ Plan your Marist courses on a map. Pick your major and every course you need app
 - **Taken / can take / prerequisites missing** for every course, from the catalog's prerequisite rules
 - **Counts toward**: the major requirement and Core category a course satisfies, with a warning for cross-listed courses (they count toward only one Breadth category)
 - **Core progress** for each Foundation and Breadth category
+- **Section progress**: "choose one", "choose two" and credit-total rules read from the catalog, so a section is done when its rule is met
 - **Cart** with credit total and missing-prerequisite warnings
 - **Path to any course**: every course still standing between you and it, in order, lit up on the map
 - **Can take now**: the courses in your major you're cleared to take today
-- **Paste from DegreeWorks** to mark courses taken in one step
-- **Searchable major picker** across all 82 majors and concentrations
-- **White / red mode**
+- **Paste from DegreeWorks** to mark courses taken in one step ("Still needed" lines are skipped; in-progress courses start unchecked)
+- **Share link**: copy a link that opens your plan in another browser
+- **Searchable major picker** across all 81 majors and concentrations
+- **White / red mode**, and a plan drawer on narrow screens
 
 ## Data
 
@@ -26,11 +28,21 @@ All data is public and comes from Marist:
 
 Prerequisites that can't be read as a clear rule are shown in the catalog's own words instead of being guessed. Your courses and cart are saved in your browser.
 
+## What it doesn't check
+
+- **Grades and GPA.** Minimum-grade conditions are shown in the course panel, not enforced.
+- **Class standing and earned credits** ("Junior standing", "75 or more credits"). These stay "Check requirement": transfer and AP credit aren't in the app.
+- **Corequisites** are shown, not checked.
+- **Conditions in prose** (permission of instructor, placement, "or equivalent"). 102 of 902 prerequisites are shown in the catalog's own words.
+- **Cross-listed twins** (e.g. ENG 214 / REST 214) aren't treated as the same course, because the catalog doesn't say which codes are twins and guessing could mark the wrong course as done.
+- **Courses that aren't in the 2026–27 catalog** can't be marked from the map.
+
 ## Run it
 
 ```bash
 npm install
 npm run dev
+npm test
 ```
 
 Rebuild the data from a fresh catalog collection with `npx tsx scripts/build-data.ts`.

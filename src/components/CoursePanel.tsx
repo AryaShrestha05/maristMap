@@ -69,7 +69,7 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
         <span>{course.credits} credits</span>
         {course.liberalArts !== null && <span>{course.liberalArts ? 'Liberal Arts' : 'Non Liberal Arts'}</span>}
         {course.offered && <span>Offered: {course.offered}</span>}
-        <span className={`status ${st}`}>{st === 'taken' ? 'Taken' : st === 'available' ? 'Can take' : 'Prerequisites missing'}</span>
+        <span className={`status ${st}`}>{st === 'taken' ? 'Taken' : st === 'available' ? 'Can take' : st === 'check' ? 'Check requirement' : 'Prerequisites missing'}</span>
       </div>
 
       <div className="actions">

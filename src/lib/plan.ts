@@ -2,7 +2,8 @@ import { CODE_RE } from './parseCourse'
 import { CORE, categoriesFor } from '../data/core'
 import type { Course, Major, Prereq } from './types'
 
-export type Status = 'taken' | 'available' | 'locked'
+/** check = only conditions this app can't verify (e.g. "Junior standing") stand in the way */
+export type Status = 'taken' | 'available' | 'check' | 'locked'
 
 export interface PrereqResult {
   /** true = satisfied, false = a required course is missing, null = can't tell (non-course condition) */
@@ -40,8 +41,10 @@ export function hasUnparsedPrereq(course: Course): boolean {
 export function status(base: string, taken: Set<string>, courses: Map<string, Course>): Status {
   if (taken.has(base)) return 'taken'
   const course = courses.get(base)
-  if (!course || hasUnparsedPrereq(course)) return 'locked'
-  return prereqCheck(course.prereq, taken).met === true ? 'available' : 'locked'
+  if (!course) return 'locked'
+  if (hasUnparsedPrereq(course)) return 'check'
+  const met = prereqCheck(course.prereq, taken).met
+  return met === true ? 'available' : met === null ? 'check' : 'locked'
 }
 
 function mentions(p: Prereq | null, base: string): boolean {

@@ -54,9 +54,15 @@ describe('status', () => {
     expect(status('CMPT 221', taken('CMPT 120'), courses)).toBe('locked')
     expect(status('CMPT 120', taken(), courses)).toBe('available')
   })
-  test('never "available" when we cannot tell', () => {
-    expect(status('CMPT 499', taken(), courses)).toBe('locked') // text-only condition
-    expect(status('CMPT 480', taken('CMPT 220', 'CMPT 221', 'MATH 205'), courses)).toBe('locked') // unparsed text
+  test('never "available" when we cannot tell: non-course or unparsed conditions are "check"', () => {
+    expect(status('CMPT 499', taken(), courses)).toBe('check') // text-only condition
+    expect(status('CMPT 480', taken('CMPT 220', 'CMPT 221', 'MATH 205'), courses)).toBe('check') // unparsed text
+  })
+  test('a missing course still wins over a text condition', () => {
+    const p = { kind: 'all' as const, of: [c('CMPT 221'), { kind: 'text' as const, text: 'Junior standing' }] }
+    const m = new Map([...courses, ['CMPT 460', course('CMPT 460', p, '…')]])
+    expect(status('CMPT 460', taken(), m)).toBe('locked')
+    expect(status('CMPT 460', taken('CMPT 221'), m)).toBe('check')
   })
   test('a course missing from the catalog is locked, not a crash', () => {
     expect(status('ENG 999', taken(), courses)).toBe('locked')

@@ -280,6 +280,9 @@ select {
 .dot.locked {
   background: var(--node-locked);
 }
+.dot.check {
+  border: 2px solid var(--node-locked);
+}
 .dot.cart {
   border: 1.5px solid var(--accent);
   box-shadow: inset 0 0 0 2px var(--bg);
@@ -552,6 +555,14 @@ select {
 .course-card.available {
   background: #fff;
   border-color: var(--marist-red);
+}
+.course-card.check {
+  background: #fff;
+  border-color: #b8b8b8;
+}
+.facts .status.check {
+  background: #fff;
+  border: 1.5px solid #b8b8b8;
 }
 .course-card.locked {
   opacity: 0.75;

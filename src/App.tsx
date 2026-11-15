@@ -102,7 +102,9 @@ export default function App() {
         ? 'Taken'
         : n.status === 'available'
           ? 'Can take'
-          : 'Prerequisites missing'
+          : n.status === 'check'
+            ? 'Check requirement'
+            : 'Prerequisites missing'
     return { title: c ? `${c.code} · ${c.title}` : n.id, detail: `${st}${n.inCart ? ' · in cart' : ''}` }
   }
 
@@ -222,6 +224,9 @@ export default function App() {
             </span>
             <span>
               <i className="dot available" /> Can take
+            </span>
+            <span>
+              <i className="dot check" /> Check requirement
             </span>
             <span>
               <i className="dot locked" /> Prerequisites missing

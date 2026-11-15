@@ -306,6 +306,8 @@ function drawNode(v: View, p: Palette, selected: boolean): void {
     g.circle(0, 0, r).stroke({ color: p.locked, width: 1.5, alpha: 0.8 })
   } else if (node.status === 'taken') {
     g.circle(0, 0, r).fill({ color: p.taken })
+  } else if (node.status === 'check') {
+    g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.locked, width: 2.2 })
   } else if (node.status === 'available') {
     g.circle(0, 0, r).fill({ color: p.bg }).stroke({ color: p.available, width: 2.2 })
   } else {

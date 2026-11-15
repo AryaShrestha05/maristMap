@@ -14,6 +14,7 @@ Plan your Marist courses on a map. Pick your major and every course you need app
 - **Path to any course**: every course still standing between you and it, in order, lit up on the map
 - **Can take now**: the courses in your major you're cleared to take today
 - **Paste from DegreeWorks** to mark courses taken in one step ("Still needed" lines are skipped; in-progress courses start unchecked)
+- **Proposed four-year plan**: a Plan view generated from prerequisites, terms offered ("Every fall") and the major's rules. Drag a course to another semester (or use its ← → buttons): the prerequisite lines follow, and a move that breaks one turns red. "Choose" sections and Core categories stay open choices with their real options.
 - **Share link**: copy a link that opens your plan in another browser
 - **Searchable major picker** across all 81 majors and concentrations
 - **White / red mode**, and a plan drawer on narrow screens
@@ -35,6 +36,8 @@ Prerequisites that can't be read as a clear rule are shown in the catalog's own 
 - **Corequisites** are shown, not checked.
 - **Conditions in prose** (permission of instructor, placement, "or equivalent"). 102 of 902 prerequisites are shown in the catalog's own words.
 - **Cross-listed twins** (e.g. ENG 214 / REST 214) aren't treated as the same course, because the catalog doesn't say which codes are twins and guessing could mark the wrong course as done.
+
+- **The proposed plan is generated, not official.** Marist's recommended sequences are separate documents the catalog links to; the plan is built from the rules above and leaves electives open.
 
 ## Run it
 

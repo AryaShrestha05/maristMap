@@ -3,6 +3,8 @@ import ThemeSwitch from './components/ThemeSwitch'
 import CoursePanel, { STATUS_LABEL } from './components/CoursePanel'
 import GridView from './components/GridView'
 import Sidebar from './components/Sidebar'
+import MajorPicker from './components/MajorPicker'
+import { pathTo } from './lib/plan'
 import GraphView from './graph/GraphView'
 import { buildGraph, type GEdge, type GNode } from './graph/buildGraph'
 import { COURSE_BY_BASE, COURSES, MAJOR_BY_ID, MAJORS } from './data'
@@ -58,6 +60,15 @@ export default function App() {
   const cart = useMemo(() => new Set(s.cart), [s.cart])
   const major = s.majorId ? (MAJOR_BY_ID.get(s.majorId) ?? null) : null
 
+  // courses on the path to the open course: shown on the map and lit up together
+  const pathCodes = useMemo(
+    () =>
+      selected && !taken.has(selected)
+        ? pathTo(selected, taken, COURSE_BY_BASE).flatMap((st) => (st.kind === 'course' ? [st.code] : st.kind === 'choice' ? st.options : []))
+        : [],
+    [selected, taken]
+  )
+
   const graph = useMemo(
     () =>
       major
@@ -67,10 +78,20 @@ export default function App() {
             taken,
             cart,
             groupBy: s.groupBy,
-            expandedCore: s.groupBy === 'requirements' ? expandedCore : null
+            expandedCore: s.groupBy === 'requirements' ? expandedCore : null,
+            extraCourses: selected ? [selected, ...pathCodes] : []
           })
         : null,
-    [major, taken, cart, s.groupBy, expandedCore]
+    [major, taken, cart, s.groupBy, expandedCore, selected, pathCodes]
+  )
+  const canTakeNow = useMemo(
+    () =>
+      major
+        ? [...new Set(major.groups.flatMap((g) => g.courses))]
+            .filter((b) => !taken.has(b) && !cart.has(b) && graph?.nodes.find((n) => n.id === b)?.status === 'available')
+            .sort()
+        : [],
+    [major, taken, cart, graph]
   )
   const bg = useMemo(backgroundGraph, [])
 
@@ -163,15 +184,8 @@ export default function App() {
           </h1>
           <p className="lede">Pick your major to see every course you need, what each one requires, and what it unlocks.</p>
           <div className="field">
-            <label htmlFor="major">Major</label>
-            <select id="major" className="select" value={picked} onChange={(e) => setPicked(e.target.value)}>
-              <option value="">Choose your major…</option>
-              {MAJORS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {majorLabel(m.id)}
-                </option>
-              ))}
-            </select>
+            <label>Major</label>
+            <MajorPicker majors={MAJORS} value={picked || null} onChange={setPicked} />
           </div>
           <button className="btn primary big" disabled={!picked}>
             Show my map
@@ -202,22 +216,16 @@ export default function App() {
           <img src="/fox.png" alt="" />
           maristMap
         </button>
-        <select
-          aria-label="Major"
-          className="select"
+        <MajorPicker
+          variant="nav"
+          majors={MAJORS}
           value={major.id}
-          onChange={(e) => {
-            update({ majorId: e.target.value })
+          onChange={(id) => {
+            update({ majorId: id })
             setSelected(null)
             setExpandedCore(null)
           }}
-        >
-          {MAJORS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {majorLabel(m.id)}
-            </option>
-          ))}
-        </select>
+        />
         <div className="seg" role="group" aria-label="View">
           <button className={s.view === 'graph' ? 'on' : ''} aria-pressed={s.view === 'graph'} onClick={() => update({ view: 'graph' })}>
             Graph
@@ -256,6 +264,11 @@ export default function App() {
           onOpen={open}
           onToggleCart={toggleCart}
           onMarkTaken={(bases) => update({ taken: [...new Set([...s.taken, ...bases])], cart: s.cart.filter((b) => !bases.includes(b)) })}
+          canTakeNow={canTakeNow}
+          onReset={() => {
+            update({ taken: [], cart: [] })
+            setSelected(null)
+          }}
         />
         <main className="stage">
           {s.view === 'graph' ? (
@@ -265,6 +278,7 @@ export default function App() {
               theme={s.theme}
               selectedId={selected}
               focusId={focus}
+              highlight={pathCodes}
               onSelect={(id) => setSelected(id)}
               onToggleCore={toggleCore}
               describe={describe}

@@ -103,3 +103,13 @@ describe('buildGraph — root hubs', () => {
     expect(g.edges).toContainEqual({ source: 'root:core', target: 'core:literature', kind: 'member' })
   })
 })
+
+describe('buildGraph — extra courses (a path being shown)', () => {
+  test('extra courses join the map with their prerequisite lines', () => {
+    const small: Major = { ...major, groups: [{ title: 'G', credits: null, courses: ['CMPT 435'], notes: [] }] }
+    const g = buildGraph({ major: small, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null, extraCourses: ['CMPT 120', 'CMPT 220'] })
+    expect(ids(g, 'course')).toEqual(['CMPT 120', 'CMPT 220', 'CMPT 221', 'CMPT 435', 'MATH 205'])
+    expect(g.edges).toContainEqual({ source: 'CMPT 120', target: 'CMPT 220', kind: 'prereq' })
+    expect(g.edges).toContainEqual({ source: 'CMPT 220', target: 'CMPT 221', kind: 'prereq' })
+  })
+})

@@ -10,7 +10,10 @@ Plan your Marist courses on a map. Pick your major and every course you need app
 - **Counts toward**: the major requirement and Core category a course satisfies, with a warning for cross-listed courses (they count toward only one Breadth category)
 - **Core progress** for each Foundation and Breadth category
 - **Cart** with credit total and missing-prerequisite warnings
+- **Path to any course**: every course still standing between you and it, in order, lit up on the map
+- **Can take now**: the courses in your major you're cleared to take today
 - **Paste from DegreeWorks** to mark courses taken in one step
+- **Searchable major picker** across all 82 majors and concentrations
 - **White / red mode**
 
 ## Data

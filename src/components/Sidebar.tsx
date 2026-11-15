@@ -9,14 +9,20 @@ export default function Sidebar({
   cart,
   onOpen,
   onToggleCart,
-  onMarkTaken
+  onMarkTaken,
+  canTakeNow,
+  onReset
 }: {
   taken: Set<string>
   cart: string[]
   onOpen: (base: string) => void
   onToggleCart: (base: string) => void
   onMarkTaken: (bases: string[]) => void
+  /** this major's courses whose prerequisites are all met (not taken, not in the cart) */
+  canTakeNow: string[]
+  onReset: () => void
 }) {
+  const [confirming, setConfirming] = useState(false)
   const progress = coreProgress(taken, COURSE_BY_BASE)
   const done = progress.filter((p) => p.satisfiedBy).length
   const warnings = cartWarnings(cart, taken, COURSE_BY_BASE)
@@ -56,6 +62,26 @@ export default function Sidebar({
 
       <section className="side-section">
         <h3>
+          Can take now <span className="count">{canTakeNow.length}</span>
+        </h3>
+        {canTakeNow.length === 0 ? (
+          <p className="fine">Nothing in this major is open yet. Mark the courses you’ve taken to see what unlocks.</p>
+        ) : (
+          <ul className="next-list">
+            {canTakeNow.slice(0, 12).map((b) => (
+              <li key={b}>
+                <button className="course-chip" onClick={() => onOpen(b)} title={COURSE_BY_BASE.get(b)?.title}>
+                  {b}
+                </button>
+              </li>
+            ))}
+            {canTakeNow.length > 12 && <li className="fine">+{canTakeNow.length - 12} more on the map</li>}
+          </ul>
+        )}
+      </section>
+
+      <section className="side-section">
+        <h3>
           Core requirements <span className="count">{done} of {progress.length}</span>
         </h3>
         <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={progress.length} aria-valuenow={done}>
@@ -85,6 +111,30 @@ export default function Sidebar({
       </section>
 
       <ImportBox taken={taken} onMarkTaken={onMarkTaken} />
+
+      <div className="start-over">
+        {confirming ? (
+          <>
+            Clear your taken courses and cart?
+            <button
+              className="linkish danger"
+              onClick={() => {
+                onReset()
+                setConfirming(false)
+              }}
+            >
+              Clear
+            </button>
+            <button className="linkish" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button className="linkish" onClick={() => setConfirming(true)} disabled={taken.size === 0 && cart.length === 0}>
+            Start over
+          </button>
+        )}
+      </div>
     </aside>
   )
 }

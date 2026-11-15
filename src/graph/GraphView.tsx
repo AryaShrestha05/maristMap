@@ -19,6 +19,8 @@ export interface GraphViewProps {
   describe: (node: GNode) => { title: string; detail: string }
   /** decorative background: no labels, no interaction, gentle drift */
   ambient?: boolean
+  /** while a course is open: the courses on its path, lit up together with it */
+  highlight?: string[]
 }
 
 interface Palette {
@@ -93,6 +95,8 @@ export default function GraphView(props: GraphViewProps) {
     dirty: boolean
     fitted: boolean
     fitZoom: number
+    /** node and edge ids of the current layout; data-only changes keep the layout */
+    structureKey: string
     /** re-fit once the layout settles, until the user pans or zooms */
     autoFit: boolean
   } | null>(null)
@@ -132,7 +136,7 @@ export default function GraphView(props: GraphViewProps) {
 
       engine.current = {
         app, viewport, edgesG, nodeLayer, labelLayer,
-        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false, fitZoom: 1, autoFit: true
+        views: new Map(), links: [], sim: null, palette: readPalette(), hover: null, dirty: true, fitted: false, fitZoom: 1, structureKey: '', autoFit: true
       }
 
       const stopAutoFit = (): void => {
@@ -169,7 +173,8 @@ export default function GraphView(props: GraphViewProps) {
           E.fitZoom = fit(viewport, [...E.views.values()].map((v) => v.sim), el, true)
         }
         const active = E.hover ?? p.selectedId
-        const near = active ? neighborhood(p.edges, active) : null
+        const path = !E.hover && p.selectedId && p.highlight?.length ? new Set([p.selectedId, ...p.highlight]) : null
+        const near = path ?? (active ? neighborhood(p.edges, active) : null)
         const zoom = viewport.scale.x
         for (const v of E.views.values()) {
           v.g.position.set(v.sim.x, v.sim.y)
@@ -224,7 +229,18 @@ export default function GraphView(props: GraphViewProps) {
   useEffect(() => {
     const E = engine.current
     if (!ready || !E) return
+    const key = nodes.map((n) => n.id).join('|') + '#' + edges.map((e) => `${e.source}>${e.target}`).join('|')
+    if (key === E.structureKey) {
+      // same dots and lines (e.g. a course was marked taken): keep the layout, just refresh data
+      for (const n of nodes) {
+        const v = E.views.get(n.id)
+        if (v) v.node = n
+      }
+      return
+    }
+    E.structureKey = key
     const previous = new Map([...E.views.values()].map((v) => [v.node.id, v.sim]))
+    const changed = nodes.filter((n) => !previous.has(n.id)).length + [...previous.keys()].filter((id) => !nodes.some((n) => n.id === id)).length
     E.sim?.stop()
     const { simNodes, simLinks, sim } = makeSimulation(nodes, edges, previous)
     const simById = new Map(simNodes.map((s) => [s.id, s]))
@@ -280,11 +296,23 @@ export default function GraphView(props: GraphViewProps) {
     E.dirty = true
 
     const isNew = previous.size === 0
-    E.autoFit = true
+    // a big change (new major, regrouping) re-frames the map; a few added path courses don't
+    const bigChange = isNew || changed > nodes.length * 0.3
+    E.autoFit = bigChange
     if (isNew) {
       for (let i = 0; i < 300; i++) sim.tick()
     } else {
-      sim.alpha(0.5)
+      // new dots start next to a neighbor instead of at the origin
+      for (const sn of simNodes) {
+        if (!Number.isNaN(sn.x)) continue
+        const link = simLinks.find((l) => (l.source === sn && !Number.isNaN(l.target.x)) || (l.target === sn && !Number.isNaN(l.source.x)))
+        const anchor = link ? (link.source === sn ? link.target : link.source) : null
+        if (anchor) {
+          sn.x = anchor.x + (Math.random() - 0.5) * 30
+          sn.y = anchor.y + (Math.random() - 0.5) * 30
+        }
+      }
+      sim.alpha(bigChange ? 0.5 : 0.15)
     }
     sim.alphaTarget(0.004).restart()
 

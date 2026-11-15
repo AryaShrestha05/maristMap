@@ -1,6 +1,6 @@
 import { CORE } from '../data/core'
 import { COURSE_BY_BASE, COURSES } from '../data'
-import { countsToward, hasUnparsedPrereq, historyCredits, prereqCheck, status, unlocks, type Status } from '../lib/plan'
+import { countsToward, hasUnparsedPrereq, historyCredits, pathTo, prereqCheck, status, unlocks, type Status } from '../lib/plan'
 import type { Major, Prereq } from '../lib/types'
 
 interface Props {
@@ -69,6 +69,8 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
   const counts = countsToward(base, major, historyCredits(taken, COURSE_BY_BASE))
   const opens = unlocks(base, COURSES)
   const isTaken = taken.has(base)
+  const path = isTaken ? [] : pathTo(base, taken, COURSE_BY_BASE)
+  const pathCredits = path.reduce((n, s) => n + (s.kind === 'course' ? Number.parseFloat(COURSE_BY_BASE.get(s.code)?.credits ?? '') || 0 : 0), 0)
 
   return (
     <aside className="panel" aria-label={`${course.code} ${course.title}`}>
@@ -107,6 +109,59 @@ export default function CoursePanel({ base, major, taken, cart, onToggleTaken, o
           )}
           {course.coreqText && <p className="fine">Corequisite: {course.coreqText}</p>}
         </section>
+
+        {!isTaken && (
+          <section>
+            <h3>
+              Path to this course
+              {path.length > 0 && (
+                <span className="count">
+                  {path.length} {path.length === 1 ? 'step' : 'steps'}
+                  {pathCredits > 0 ? ` · ${pathCredits} cr` : ''}
+                </span>
+              )}
+            </h3>
+            {path.length === 0 ? (
+              <p className="path-done">{st === 'available' ? 'Nothing left: you can take this course now.' : 'No courses needed first. Check the requirement above.'}</p>
+            ) : (
+              <ol className="path-list">
+                {path.map((step, i) => (
+                  <li key={i}>
+                    <span className="step">
+                      {step.kind === 'course' && (
+                        <>
+                          <button className="course-chip" onClick={() => onOpen(step.code)}>
+                            {step.code}
+                          </button>
+                          <span className="t">{COURSE_BY_BASE.get(step.code)?.title}</span>
+                        </>
+                      )}
+                      {step.kind === 'choice' && (
+                        <>
+                          <span className="t">One of</span>
+                          {step.options.map((o) => (
+                            <button key={o} className="course-chip" onClick={() => onOpen(o)} title={COURSE_BY_BASE.get(o)?.title}>
+                              {o}
+                            </button>
+                          ))}
+                          {step.alternatives.map((a) => (
+                            <span key={a} className="cond">or {a}</span>
+                          ))}
+                        </>
+                      )}
+                      {step.kind === 'condition' && (
+                        <span className="cond">
+                          {step.forCourse !== base ? `${step.forCourse}: ` : ''}
+                          {step.text}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
 
         <section>
           <h3>Counts toward</h3>

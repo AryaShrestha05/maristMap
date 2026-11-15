@@ -34,6 +34,8 @@ export interface GraphInput {
   groupBy: GroupBy
   /** Core category whose approved courses are shown, or null (all Core hubs collapsed) */
   expandedCore: string | null
+  /** more courses to show, e.g. the path to the selected course */
+  extraCourses?: string[]
 }
 
 function prereqCodes(p: Prereq | null, out: string[] = []): string[] {
@@ -50,7 +52,7 @@ export function coreCourses(categoryId: string, courses: Map<string, Course>): s
   return out.sort()
 }
 
-export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore }: GraphInput): { nodes: GNode[]; edges: GEdge[] } {
+export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore, extraCourses = [] }: GraphInput): { nodes: GNode[]; edges: GEdge[] } {
   const nodes = new Map<string, GNode>()
   const edges: GEdge[] = []
 
@@ -68,6 +70,7 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
 
   const shown = new Set(memberOf.keys())
   for (const base of [...shown]) for (const p of prereqCodes(courses.get(base)?.prereq ?? null)) shown.add(p)
+  for (const base of extraCourses) shown.add(base)
 
   // hubs
   if (groupBy === 'requirements') {

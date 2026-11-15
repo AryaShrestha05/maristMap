@@ -211,3 +211,24 @@ describe('editing the plan', () => {
     expect(planIssues(q, courses, new Set())['CMPT 330']).toEqual(['Needs MATH 115 or MATH 130 in an earlier semester'])
   })
 })
+
+import { freezePlan } from '../src/lib/schedule'
+
+describe('freezePlan (editing keeps everything else in place)', () => {
+  test('moving one course out of a semester does not pull another one in', () => {
+    const p = proposePlan(input())
+    const moved = p.items.find((i) => i.kind === 'course' && i.semester === 0)!
+    const q = proposePlan(input({ pins: { ...freezePlan(p), [moved.id]: 7 } }))
+    for (const i of p.items) {
+      if (i.id === moved.id) continue
+      expect(q.items.find((x) => x.id === i.id)?.semester).toBe(i.semester)
+    }
+    expect(semOf(q, moved.id)).toBe(7)
+  })
+
+  test('only placed items are frozen', () => {
+    const p = proposePlan(input())
+    const frozen = freezePlan(p)
+    expect(Object.keys(frozen).length).toBe(p.items.filter((i) => i.semester !== null).length)
+  })
+})

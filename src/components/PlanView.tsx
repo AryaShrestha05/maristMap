@@ -289,7 +289,6 @@ export default function PlanView({ plan, taken, start, edited, selectedId, onSta
           {i.reason === 'cart' && <span className="tag cart">In cart</span>}
           {i.reason === 'added' && <span className="tag added">Added</span>}
           {i.pick && <span className="tag added">Your pick</span>}
-          {i.pinned && i.reason !== 'added' && <span className="tag moved">Moved</span>}
           {i.kind === 'slot' && !i.pick && <span className="tag">{i.options?.length ?? 0} options</span>}
         </div>
         {problems && <p className="plan-card-issue">{problems.join(' · ')}</p>}

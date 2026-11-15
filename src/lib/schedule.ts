@@ -363,3 +363,11 @@ export function planIssues(plan: ProposedPlan, courses: Map<string, Course>, tak
   }
   return out
 }
+
+/**
+ * Every placed item's current semester, as pins. Editing starts from this, so moving one course
+ * never pulls a different course into the space it left.
+ */
+export function freezePlan(plan: ProposedPlan): Record<string, number> {
+  return Object.fromEntries(plan.items.filter((i) => i.semester !== null).map((i) => [i.id, i.semester!]))
+}

@@ -3,7 +3,7 @@ import ThemeSwitch from './components/ThemeSwitch'
 import CoursePanel, { STATUS_LABEL } from './components/CoursePanel'
 import GridView from './components/GridView'
 import PlanView from './components/PlanView'
-import { proposePlan } from './lib/schedule'
+import { freezePlan, proposePlan } from './lib/schedule'
 import Sidebar from './components/Sidebar'
 import MajorPicker from './components/MajorPicker'
 import CursorGrid from './components/CursorGrid'
@@ -401,16 +401,20 @@ export default function App() {
               edited={[s.planPins, s.planPicks, s.planAdded].some((m) => Object.keys(m).length > 0)}
               selectedId={selected}
               onStart={(n) => update({ planStart: n })}
+              // every edit starts from the plan as it is, so nothing else shifts to fill a gap
               onMove={(id, sem) =>
-                id in s.planAdded
-                  ? update({ planAdded: { ...s.planAdded, [id]: sem } })
-                  : update({ planPins: { ...s.planPins, [id]: sem } })
+                update({
+                  planPins: { ...freezePlan(plan), [id]: sem },
+                  ...(id in s.planAdded ? { planAdded: { ...s.planAdded, [id]: sem } } : {})
+                })
               }
               onPick={(slot, base) => {
                 const { [slot]: _old, ...rest } = s.planPicks
-                update({ planPicks: base ? { ...rest, [slot]: base } : rest })
+                update({ planPins: freezePlan(plan), planPicks: base ? { ...rest, [slot]: base } : rest })
               }}
-              onAdd={(base, sem) => update({ planAdded: { ...s.planAdded, [base]: sem } })}
+              onAdd={(base, sem) =>
+                update({ planPins: { ...freezePlan(plan), [base]: sem }, planAdded: { ...s.planAdded, [base]: sem } })
+              }
               onRemove={(base) => {
                 const { [base]: _a, ...added } = s.planAdded
                 const { [base]: _p, ...pins } = s.planPins

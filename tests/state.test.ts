@@ -56,3 +56,20 @@ describe('share link', () => {
     expect(decodeShare(raw, ids)).toEqual({ majorId: 'fin', taken: ['ACCT 203'], cart: [] })
   })
 })
+
+describe('saved plan settings', () => {
+  test('plan view, start semester and moved courses are kept', () => {
+    const s = { ...DEFAULT_STATE, view: 'plan' as const, planStart: 3, planPins: { 'CMPT 220': 4 } }
+    const back = decodeState(encodeState(s), [])
+    expect(back.view).toBe('plan')
+    expect(back.planStart).toBe(3)
+    expect(back.planPins).toEqual({ 'CMPT 220': 4 })
+  })
+
+  test('bad values fall back: start outside 0–7, non-numeric or out-of-range moves', () => {
+    const raw = JSON.stringify({ planStart: 12, planPins: { a: 2, b: 'x', c: 9, d: -1 } })
+    const back = decodeState(raw, [])
+    expect(back.planStart).toBeNull()
+    expect(back.planPins).toEqual({ a: 2 })
+  })
+})

@@ -1503,3 +1503,356 @@ h3 {
   border-top: 2px dashed var(--node-taken);
   vertical-align: middle;
 }
+
+/* ---------- proposed plan ---------- */
+.plan {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  color: var(--fg);
+}
+.plan-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  padding: 18px 22px 12px;
+}
+.plan-title h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.plan-title p {
+  margin: 3px 0 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.plan-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  font-size: 12.5px;
+}
+.plan-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.plan-start select {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+}
+.plan-sum {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.plan-sum strong {
+  color: var(--fg);
+}
+
+.plan-board {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 6px 22px 28px;
+  overflow: auto;
+}
+.plan-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+.plan-lines path {
+  fill: none;
+  stroke: var(--edge-prereq);
+  stroke-width: 1.4;
+  opacity: 0.55;
+  transition: opacity 160ms var(--ease), stroke-width 160ms var(--ease);
+}
+.plan-lines path.lit {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  opacity: 1;
+}
+.plan-lines path.dim {
+  opacity: 0.08;
+}
+.plan-lines path.bad {
+  stroke: #e11d48;
+  stroke-dasharray: 5 4;
+  opacity: 0.95;
+}
+
+.plan-col {
+  flex: 0 0 214px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: calc(100% - 4px);
+  padding: 10px 10px 12px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent);
+  transition: background 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.plan-col h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 2px 2px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.plan-col h3 span {
+  color: var(--muted);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.plan-col h3 span.heavy {
+  color: var(--accent);
+}
+.plan-col.done {
+  flex-basis: 150px;
+}
+.plan-col.unplaced {
+  background: color-mix(in srgb, #e11d48 8%, transparent);
+}
+.plan-board.dragging .plan-col.ok {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.plan-board.dragging .plan-col.no {
+  background: color-mix(in srgb, #e11d48 7%, transparent);
+}
+.plan-col.over {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.plan-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-room {
+  margin: 2px 2px 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.plan-card {
+  position: relative;
+  z-index: 2;
+  padding: 9px 10px 8px;
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+  cursor: grab;
+  transition:
+    transform 380ms var(--ease),
+    opacity 160ms var(--ease),
+    box-shadow 160ms var(--ease);
+  animation: card-in 320ms var(--ease) both;
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+.plan-card:hover,
+.plan-card.hot {
+  box-shadow: var(--shadow-2), inset 0 0 0 1.5px var(--marist-red);
+}
+.plan-card:active {
+  cursor: grabbing;
+}
+.plan-card:focus-visible {
+  outline: 2px solid var(--marist-red);
+  outline-offset: 2px;
+}
+.plan-card.selected {
+  box-shadow: var(--shadow-2), inset 0 0 0 2px var(--marist-red);
+}
+.plan-card.dim {
+  opacity: 0.35;
+}
+.plan-card.lifting {
+  opacity: 0.4;
+}
+.plan-card.slot {
+  background: var(--paper-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 1.5px dashed #d6d3d1;
+}
+.plan-card.bad {
+  box-shadow: var(--shadow-1), inset 0 0 0 1.5px #e11d48;
+}
+.plan-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11.5px;
+}
+.plan-card .code {
+  font-weight: 600;
+  color: var(--marist-red);
+}
+.plan-card .choose {
+  font-weight: 650;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10.5px;
+}
+.plan-card .cr {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.plan-card-title {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+.plan-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.plan-card-tags:empty {
+  display: none;
+}
+.plan-card .tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--line-2);
+  color: var(--ink-2);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.plan-card .tag.core {
+  background: var(--marist-red-soft);
+  color: var(--marist-red-deep);
+}
+.plan-card .tag.cart {
+  background: var(--ink);
+  color: #fff;
+}
+.plan-card .tag.moved {
+  background: #fff7e8;
+  color: #8a5300;
+}
+.plan-card-issue {
+  margin: 6px 0 0;
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 550;
+}
+.plan-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  cursor: default;
+}
+.plan-options button {
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 11px;
+  cursor: pointer;
+}
+.plan-options button:hover {
+  border-color: var(--marist-red);
+  color: var(--marist-red);
+}
+.plan-move {
+  position: absolute;
+  top: 6px;
+  right: 34px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+.plan-card:hover .plan-move,
+.plan-card:focus-within .plan-move {
+  opacity: 1;
+}
+.plan-move button {
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.plan-move button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.plan-move button:not(:disabled):hover {
+  border-color: var(--marist-red);
+  color: var(--marist-red);
+}
+.plan-done-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.plan-done {
+  position: relative;
+  z-index: 2;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: var(--marist-red);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity 160ms var(--ease);
+}
+.plan-done.dim {
+  opacity: 0.3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-card {
+    transition: none;
+    animation: none;
+  }
+}
+.plan-board {
+  cursor: grab;
+}
+.plan-board.panning {
+  cursor: grabbing;
+  user-select: none;
+}

@@ -1,5 +1,5 @@
 export type ThemeMode = 'white' | 'red'
-export type View = 'graph' | 'grid'
+export type View = 'graph' | 'grid' | 'plan'
 export type GroupBy = 'requirements' | 'departments'
 
 export interface SavedState {
@@ -10,6 +10,10 @@ export interface SavedState {
   theme: ThemeMode
   view: View
   groupBy: GroupBy
+  /** first semester of the proposed plan (0 = Year 1 Fall); null = worked out from courses taken */
+  planStart: number | null
+  /** courses the student moved in the plan: id → semester */
+  planPins: Record<string, number>
 }
 
 export const STORAGE_KEY = 'maristmap:v1'
@@ -20,13 +24,16 @@ export const DEFAULT_STATE: SavedState = {
   cart: [],
   theme: 'white',
   view: 'graph',
-  groupBy: 'requirements'
+  groupBy: 'requirements',
+  planStart: null,
+  planPins: {}
 }
 
 export function encodeState(s: SavedState): string {
   return JSON.stringify({ v: 1, ...s })
 }
 
+const semester = (x: unknown): number | null => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 7 ? (x as number) : null)
 const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : [])
 const oneOf = <T extends string>(x: unknown, options: readonly T[], fallback: T): T =>
   options.includes(x as T) ? (x as T) : fallback
@@ -46,8 +53,13 @@ export function decodeState(raw: string | null, majorIds: string[]): SavedState 
     taken: strings(o.taken),
     cart: strings(o.cart),
     theme: oneOf(o.theme, ['white', 'red'] as const, DEFAULT_STATE.theme),
-    view: oneOf(o.view, ['graph', 'grid'] as const, DEFAULT_STATE.view),
-    groupBy: oneOf(o.groupBy, ['requirements', 'departments'] as const, DEFAULT_STATE.groupBy)
+    view: oneOf(o.view, ['graph', 'grid', 'plan'] as const, DEFAULT_STATE.view),
+    groupBy: oneOf(o.groupBy, ['requirements', 'departments'] as const, DEFAULT_STATE.groupBy),
+    planStart: semester(o.planStart),
+    planPins:
+      o.planPins && typeof o.planPins === 'object'
+        ? Object.fromEntries(Object.entries(o.planPins).filter(([, v]) => semester(v) !== null))
+        : {}
   }
 }
 

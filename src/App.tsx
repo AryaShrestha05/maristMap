@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import ThemeSwitch from './components/ThemeSwitch'
 import CoursePanel, { STATUS_LABEL } from './components/CoursePanel'
 import GridView from './components/GridView'
+import PlanView from './components/PlanView'
+import { proposePlan } from './lib/schedule'
 import Sidebar from './components/Sidebar'
 import MajorPicker from './components/MajorPicker'
 import CursorGrid from './components/CursorGrid'
@@ -77,6 +79,16 @@ export default function App() {
           })
         : null,
     [major, taken, cart, s.groupBy, expandedCore, selected, pathCodes]
+  )
+  // first semester to plan: the student's choice, or where their earned credits put them (~15 a semester)
+  const takenCredits = s.taken.reduce((n, b) => n + (Number.parseFloat(COURSE_BY_BASE.get(b)?.credits ?? '') || 0), 0)
+  const planStart = s.planStart ?? Math.min(7, Math.floor(takenCredits / 15))
+  const plan = useMemo(
+    () =>
+      major && s.view === 'plan'
+        ? proposePlan({ major, courses: COURSE_BY_BASE, taken, cart: s.cart, start: planStart, pins: s.planPins })
+        : null,
+    [major, s.view, taken, s.cart, planStart, s.planPins]
   )
   const canTakeNow = useMemo(
     () =>
@@ -262,7 +274,7 @@ export default function App() {
           majors={MAJORS}
           value={major.id}
           onChange={(id) => {
-            update({ majorId: id })
+            update({ majorId: id, planPins: {} })
             setSelected(null)
             setExpandedCore(null)
           }}
@@ -282,7 +294,15 @@ export default function App() {
           >
             Grid
           </button>
+          <button
+            className={s.view === 'plan' ? 'on' : ''}
+            aria-pressed={s.view === 'plan'}
+            onClick={() => update({ view: 'plan' })}
+          >
+            Plan
+          </button>
         </div>
+{s.view !== 'plan' && (
         <div className="seg" role="group" aria-label="Group by">
           <button
             className={s.groupBy === 'requirements' ? 'on' : ''}
@@ -299,6 +319,7 @@ export default function App() {
             Departments
           </button>
         </div>
+        )}
         <span className="spacer" />
         <a className="nav-link" href={major.url} target="_blank" rel="noreferrer">
           Catalog page ↗
@@ -362,6 +383,21 @@ export default function App() {
               onSelect={(id) => setSelected(id)}
               onToggleCore={toggleCore}
               describe={describe}
+            />
+          ) : s.view === 'plan' && plan ? (
+            <PlanView
+              plan={plan}
+              taken={taken}
+              start={planStart}
+              moved={Object.keys(s.planPins).length > 0}
+              selectedId={selected}
+              onStart={(n) => update({ planStart: n })}
+              onMove={(id, sem) => update({ planPins: { ...s.planPins, [id]: sem } })}
+              onUndoMoves={() => update({ planPins: {} })}
+              onOpen={(base) => {
+                setDrawer(false)
+                setSelected(base)
+              }}
             />
           ) : (
             <GridView

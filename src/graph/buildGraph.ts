@@ -59,7 +59,9 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
     if (!list.includes(hub)) list.push(hub)
     memberOf.set(base, list)
   }
-  for (const g of major.groups) for (const base of g.courses) addMember(base, `group:${g.title}`)
+  major.groups.forEach((g, i) => {
+    for (const base of g.courses) addMember(base, `group:${i}`)
+  })
   if (expandedCore) for (const base of coreCourses(expandedCore, courses)) addMember(base, `core:${expandedCore}`)
 
   const shown = new Set(memberOf.keys())
@@ -67,7 +69,7 @@ export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore 
 
   // hubs
   if (groupBy === 'requirements') {
-    for (const g of major.groups) nodes.set(`group:${g.title}`, { id: `group:${g.title}`, kind: 'hub', label: g.title })
+    major.groups.forEach((g, i) => nodes.set(`group:${i}`, { id: `group:${i}`, kind: 'hub', label: g.title }))
     const progress = new Map(coreProgress(taken, courses).map((p) => [p.categoryId, p.satisfiedBy]))
     for (const c of CORE) {
       nodes.set(`core:${c.id}`, {

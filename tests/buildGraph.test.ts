@@ -31,8 +31,8 @@ describe('buildGraph — requirements', () => {
   const g = buildGraph({ major, courses, taken: new Set(['CMPT 120']), cart: new Set(['CMPT 220']), groupBy: 'requirements', expandedCore: null })
 
   test('a hub per requirement group and per Core category', () => {
-    expect(ids(g, 'hub')).toContain('group:Foundation')
-    expect(ids(g, 'hub')).toContain('group:Upper level')
+    expect(ids(g, 'hub')).toContain('group:0')
+    expect(ids(g, 'hub')).toContain('group:1')
     expect(ids(g, 'hub')).toContain('core:literature')
   })
 
@@ -50,7 +50,7 @@ describe('buildGraph — requirements', () => {
   })
 
   test('member edges from hubs, prereq edges between courses', () => {
-    expect(g.edges).toContainEqual({ source: 'group:Foundation', target: 'CMPT 220', kind: 'member' })
+    expect(g.edges).toContainEqual({ source: 'group:0', target: 'CMPT 220', kind: 'member' })
     expect(g.edges).toContainEqual({ source: 'CMPT 221', target: 'CMPT 435', kind: 'prereq' })
     expect(g.edges).toContainEqual({ source: 'MATH 205', target: 'CMPT 435', kind: 'prereq' })
   })
@@ -77,5 +77,18 @@ describe('buildGraph — departments', () => {
     const g = buildGraph({ major, courses, taken: new Set(), cart: new Set(), groupBy: 'departments', expandedCore: null })
     expect(ids(g, 'hub')).toEqual(['dept:CMPT', 'dept:MATH'])
     expect(g.edges).toContainEqual({ source: 'dept:MATH', target: 'MATH 205', kind: 'member' })
+  })
+})
+
+describe('buildGraph — groups with the same title', () => {
+  test('stay separate hubs', () => {
+    const twin: Major = { ...major, groups: [
+      { title: 'Choice of either', credits: null, courses: ['CMPT 120'], notes: [] },
+      { title: 'Choice of either', credits: null, courses: ['CMPT 220'], notes: [] }
+    ] }
+    const g = buildGraph({ major: twin, courses, taken: new Set(), cart: new Set(), groupBy: 'requirements', expandedCore: null })
+    const hubs = g.nodes.filter((n) => n.kind === 'hub' && !n.core)
+    expect(hubs).toHaveLength(2)
+    expect(hubs.map((h) => h.label)).toEqual(['Choice of either', 'Choice of either'])
   })
 })

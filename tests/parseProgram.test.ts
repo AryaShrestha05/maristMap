@@ -86,3 +86,76 @@ describe('parsePrograms', () => {
     expect(majors[2].groups.map((g) => g.title)).toEqual(['Requirements for a Major in Finance'])
   })
 })
+
+describe('parsePrograms — real-page quirks', () => {
+  const page: RawProgram = {
+    poid: '400',
+    name: 'Computer Science, B.S.',
+    url: 'u4',
+    items: [
+      { type: 'heading', level: 2, text: 'Computer Science Foundation Courses: 57 cr' },
+      { type: 'course', text: 'CMPT 120L - Introduction to Programming', coid: '1' },
+      { type: 'text', text: 'Course Requirements in Related Fields:' },
+      { type: 'text', text: 'Course Requirements in Related Fields:' },
+      { type: 'course', text: 'BUS 100L - Introduction to Business', coid: '3' },
+      { type: 'heading', level: 3, text: '3.0 Core/Liberal Studies Requirements' },
+      { type: 'heading', level: 4, text: '3.1 Foundation: 7 cr' },
+      { type: 'course', text: 'CMPT 220L - x', coid: '2' },
+      { type: 'heading', level: 4, text: 'Breadth: 18 cr' },
+      { type: 'course', text: 'CMPT 404L - x', coid: '4' },
+      { type: 'heading', level: 2, text: 'Software Development Concentration: 12 cr' },
+      { type: 'course', text: 'CMPT 450L - x', coid: '5' }
+    ]
+  }
+  const [m] = parsePrograms([page], byCoid)
+
+  test('Core/Liberal Studies sections are skipped (the app has its own Core hubs)', () => {
+    expect(m.groups.map((g) => g.title)).toEqual([
+      'Computer Science Foundation Courses',
+      'Course Requirements in Related Fields',
+      'Software Development Concentration'
+    ])
+  })
+
+  test('"X Concentration" names drop the word Concentration', () => {
+    expect(m.concentration).toBe('Software Development')
+  })
+
+  test("a repeated sub-heading is not kept as its own group's note", () => {
+    expect(m.groups[1].notes).toEqual([])
+  })
+})
+
+describe('parsePrograms — alternatives and naming', () => {
+  const page: RawProgram = {
+    poid: '500',
+    name: 'Finance, B.S.',
+    url: 'u5',
+    items: [
+      { type: 'heading', level: 2, text: 'Foundation: 9 cr' },
+      { type: 'course', text: 'CMPT 120L - x', coid: '1' },
+      { type: 'text', text: 'OR' },
+      { type: 'text', text: 'OR' },
+      { type: 'course', text: 'CMPT 220L - x', coid: '2' },
+      { type: 'heading', level: 2, text: 'Concentration in Analytics' },
+      { type: 'heading', level: 3, text: 'Choice of either' },
+      { type: 'course', text: 'CMPT 404L - x', coid: '4' },
+      { type: 'heading', level: 3, text: 'Choice of either' },
+      { type: 'course', text: 'CMPT 450L - x', coid: '5' }
+    ]
+  }
+  const empty: RawProgram = { poid: '600', name: 'Professional Studies, B.S.', url: 'u6', items: [{ type: 'text', text: 'Intro only' }] }
+  const majors = parsePrograms([page, empty], byCoid)
+
+  test('"OR" between two courses becomes an "A or B" note, not a bare OR', () => {
+    expect(majors[0].groups[0].notes).toEqual(['CMPT 120 or CMPT 220'])
+  })
+
+  test("a concentration's sub-sections carry the concentration name", () => {
+    expect(majors[0].groups.map((g) => g.title)).toEqual(['Foundation', 'Analytics: Choice of either', 'Analytics: Choice of either'])
+  })
+
+  test('programs with no requirement groups are left out', () => {
+    expect(majors.map((m) => m.name)).toEqual(['Finance'])
+  })
+})

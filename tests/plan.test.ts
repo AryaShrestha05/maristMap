@@ -90,3 +90,46 @@ describe('cartWarnings', () => {
     expect(cartWarnings(['CMPT 480'], taken(), courses)).toEqual({ 'CMPT 480': ['Check the prerequisite text'] })
   })
 })
+
+import { coreProgress, countsToward } from '../src/lib/plan'
+import type { Major } from '../src/lib/types'
+
+describe('coreProgress', () => {
+  const cmap = new Map(
+    ['ENG 170', 'REST 214', 'PHIL 200', 'HIST 101', 'HIST 102', 'HIST 301'].map((b) => [b, course(b)])
+  )
+  const byId = (r: ReturnType<typeof coreProgress>) => Object.fromEntries(r.map((x) => [x.categoryId, x.satisfiedBy]))
+
+  test('nothing taken → nothing satisfied', () => {
+    expect(Object.values(byId(coreProgress(new Set(), cmap))).every((v) => v === null)).toBe(true)
+  })
+
+  test('a cross-listed course satisfies only one category', () => {
+    const r = byId(coreProgress(new Set(['REST 214']), cmap))
+    const used = Object.values(r).filter((v) => v === 'REST 214')
+    expect(used).toHaveLength(1)
+  })
+
+  test('greedy assignment frees the cross-listed course for the category that needs it', () => {
+    // ENG 170 can only be Literature; REST 214 can be Literature or Ethics → it should go to Ethics
+    const r = byId(coreProgress(new Set(['ENG 170', 'REST 214']), cmap))
+    expect(r.literature).toBe('ENG 170')
+    expect(r.ethics).toBe('REST 214')
+  })
+
+  test('History 300-level counts only after 6 history credits', () => {
+    expect(byId(coreProgress(new Set(['HIST 301']), cmap)).history).toBeNull()
+    expect(byId(coreProgress(new Set(['HIST 101', 'HIST 102', 'HIST 301']), cmap)).history).not.toBeNull()
+  })
+})
+
+describe('countsToward', () => {
+  const m: Major = {
+    id: 'x', name: 'X', degree: 'B.A.', concentration: null, url: '',
+    groups: [{ title: 'Required', credits: null, courses: ['ENG 170'], notes: [] }]
+  }
+  test('major groups, Core categories, and the cross-listed warning', () => {
+    expect(countsToward('ENG 170', m, 0)).toEqual({ groups: ['Required'], core: ['literature'], crossListedWarning: false })
+    expect(countsToward('REST 214', m, 0)).toEqual({ groups: [], core: ['ethics', 'literature'], crossListedWarning: true })
+  })
+})

@@ -22,3 +22,22 @@ export interface Course {
   prereq: Prereq | null
   url: string
 }
+
+export interface ReqGroup {
+  title: string
+  /** e.g. "57" from "…: 57 cr", verbatim */
+  credits: string | null
+  /** base codes listed in this group */
+  courses: string[]
+  /** instruction text from the catalog, verbatim ("Choose one of the following") */
+  notes: string[]
+}
+
+export interface Major {
+  id: string
+  name: string
+  degree: string
+  concentration: string | null
+  groups: ReqGroup[]
+  url: string
+}

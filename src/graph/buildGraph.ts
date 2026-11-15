@@ -1,0 +1,114 @@
+import { CORE, categoriesFor } from '../data/core'
+import { coreProgress, status, type Status } from '../lib/plan'
+import type { Course, Major, Prereq } from '../lib/types'
+
+export type GroupBy = 'requirements' | 'departments'
+
+export interface GNode {
+  id: string
+  kind: 'hub' | 'course'
+  label: string
+  /** courses only */
+  status?: Status
+  inCart?: boolean
+  /** course listed by the major but not in the 2026–27 catalog */
+  missing?: boolean
+  /** Core hubs only */
+  core?: boolean
+  satisfied?: boolean
+}
+
+export interface GEdge {
+  source: string
+  target: string
+  kind: 'member' | 'prereq'
+}
+
+export interface GraphInput {
+  major: Major
+  courses: Map<string, Course>
+  taken: Set<string>
+  cart: Set<string>
+  groupBy: GroupBy
+  /** Core category whose approved courses are shown, or null (all Core hubs collapsed) */
+  expandedCore: string | null
+}
+
+function prereqCodes(p: Prereq | null, out: string[] = []): string[] {
+  if (!p) return out
+  if (p.kind === 'course') out.push(p.code)
+  else if (p.kind !== 'text') for (const x of p.of) prereqCodes(x, out)
+  return out
+}
+
+/** Approved catalog courses for a Core category (named in the list, or matched by its rule). */
+export function coreCourses(categoryId: string, courses: Map<string, Course>): string[] {
+  const out: string[] = []
+  for (const base of courses.keys()) if (categoriesFor(base, 99).includes(categoryId)) out.push(base)
+  return out.sort()
+}
+
+export function buildGraph({ major, courses, taken, cart, groupBy, expandedCore }: GraphInput): { nodes: GNode[]; edges: GEdge[] } {
+  const nodes = new Map<string, GNode>()
+  const edges: GEdge[] = []
+
+  // which courses appear: major courses + direct prerequisites (+ an expanded Core category)
+  const memberOf = new Map<string, string[]>() // course → hub ids (requirements grouping)
+  const addMember = (base: string, hub: string): void => {
+    const list = memberOf.get(base) ?? []
+    if (!list.includes(hub)) list.push(hub)
+    memberOf.set(base, list)
+  }
+  for (const g of major.groups) for (const base of g.courses) addMember(base, `group:${g.title}`)
+  if (expandedCore) for (const base of coreCourses(expandedCore, courses)) addMember(base, `core:${expandedCore}`)
+
+  const shown = new Set(memberOf.keys())
+  for (const base of [...shown]) for (const p of prereqCodes(courses.get(base)?.prereq ?? null)) shown.add(p)
+
+  // hubs
+  if (groupBy === 'requirements') {
+    for (const g of major.groups) nodes.set(`group:${g.title}`, { id: `group:${g.title}`, kind: 'hub', label: g.title })
+    const progress = new Map(coreProgress(taken, courses).map((p) => [p.categoryId, p.satisfiedBy]))
+    for (const c of CORE) {
+      nodes.set(`core:${c.id}`, {
+        id: `core:${c.id}`,
+        kind: 'hub',
+        label: `Core: ${c.name}`,
+        core: true,
+        satisfied: progress.get(c.id) != null
+      })
+    }
+  } else {
+    for (const base of shown) {
+      const prefix = base.split(' ')[0]
+      nodes.set(`dept:${prefix}`, { id: `dept:${prefix}`, kind: 'hub', label: prefix })
+    }
+  }
+
+  // courses
+  for (const base of shown) {
+    const course = courses.get(base)
+    nodes.set(base, {
+      id: base,
+      kind: 'course',
+      label: base,
+      status: status(base, taken, courses),
+      inCart: cart.has(base),
+      missing: !course
+    })
+    if (groupBy === 'requirements') {
+      for (const hub of memberOf.get(base) ?? []) edges.push({ source: hub, target: base, kind: 'member' })
+    } else {
+      edges.push({ source: `dept:${base.split(' ')[0]}`, target: base, kind: 'member' })
+    }
+  }
+
+  // prerequisite lines (prerequisite → course), only between shown courses
+  for (const base of shown) {
+    for (const p of new Set(prereqCodes(courses.get(base)?.prereq ?? null))) {
+      if (shown.has(p)) edges.push({ source: p, target: base, kind: 'prereq' })
+    }
+  }
+
+  return { nodes: [...nodes.values()], edges }
+}

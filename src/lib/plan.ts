@@ -1,5 +1,6 @@
 import { CODE_RE } from './parseCourse'
-import type { Course, Prereq } from './types'
+import { CORE, categoriesFor } from '../data/core'
+import type { Course, Major, Prereq } from './types'
 
 export type Status = 'taken' | 'available' | 'locked'
 
@@ -84,4 +85,50 @@ export function cartWarnings(cart: string[], taken: Set<string>, courses: Map<st
     else if (r.met === null) out[base] = ['Check the prerequisite text']
   }
   return out
+}
+
+/** History credits already earned (for the Core History 300-level rule). */
+export function historyCredits(taken: Set<string>, courses: Map<string, Course>): number {
+  let n = 0
+  for (const base of taken) if (base.startsWith('HIST ')) n += Number.parseFloat(courses.get(base)?.credits ?? '') || 3
+  return n
+}
+
+/**
+ * Which taken course satisfies each Core category. A course counts toward only one category
+ * (Marist: "A cross-listed course can only satisfy ONE breadth requirement"), so categories with
+ * the fewest options pick first, and each picks the course with the fewest other uses.
+ */
+export function coreProgress(taken: Set<string>, courses: Map<string, Course>): { categoryId: string; satisfiedBy: string | null }[] {
+  const hist = historyCredits(taken, courses)
+  const options = new Map<string, string[]>(CORE.map((c) => [c.id, []]))
+  const usesOf = new Map<string, string[]>()
+  for (const base of taken) {
+    const cats = categoriesFor(base, hist)
+    usesOf.set(base, cats)
+    for (const id of cats) options.get(id)?.push(base)
+  }
+  const used = new Set<string>()
+  const result = new Map<string, string | null>()
+  const order = [...options.entries()].sort((a, b) => a[1].length - b[1].length)
+  for (const [id, candidates] of order) {
+    const pick = candidates
+      .filter((b) => !used.has(b))
+      .sort((a, b) => (usesOf.get(a)?.length ?? 0) - (usesOf.get(b)?.length ?? 0))[0]
+    result.set(id, pick ?? null)
+    if (pick) used.add(pick)
+  }
+  return CORE.map((c) => ({ categoryId: c.id, satisfiedBy: result.get(c.id) ?? null }))
+}
+
+/** What a course counts toward for this student. */
+export function countsToward(
+  base: string,
+  major: Major,
+  histCredits: number
+): { groups: string[]; core: string[]; crossListedWarning: boolean } {
+  const groups = major.groups.filter((g) => g.courses.includes(base)).map((g) => g.title)
+  const core = categoriesFor(base, histCredits)
+  const breadth = core.filter((id) => CORE.find((c) => c.id === id)?.group === 'Breadth')
+  return { groups, core, crossListedWarning: breadth.length > 1 }
 }

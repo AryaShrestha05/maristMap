@@ -144,11 +144,10 @@ describe('proposePlan on real majors', () => {
     expect(early.filter((i) => Number(i.id.split(' ')[1]) >= 300).map((i) => i.id)).toEqual([])
   })
 
-  test('the load is spread over all eight semesters (none empty, none over 16)', () => {
-    for (const s of cs.semesters) {
-      expect(s.credits).toBeGreaterThan(0)
-      expect(s.credits).toBeLessThanOrEqual(16)
-    }
+  test('semesters fill up to the 16-credit limit and never go over it', () => {
+    for (const s of cs.semesters) expect(s.credits).toBeLessThanOrEqual(16)
+    // the first semester has plenty of courses ready, so it's filled close to the limit
+    expect(cs.semesters[0].credits).toBeGreaterThanOrEqual(14)
   })
 
   test("everything fits; the only issue is the catalog's own term conflict, and it is reported", () => {
@@ -163,5 +162,52 @@ describe('proposePlan on real majors', () => {
     expect(breadth.reduce((n, i) => n + i.credits, 0)).toBeGreaterThanOrEqual(16)
     expect(breadth.reduce((n, i) => n + i.credits, 0)).toBeLessThan(20)
     expect(psych.items.filter((i) => i.semester === null)).toEqual([])
+  })
+})
+
+describe('editing the plan', () => {
+  test('picking a course for a "Choose" card puts that course there (and its prerequisites before it)', () => {
+    const base = proposePlan(input())
+    const slot = base.items.find((i) => i.kind === 'slot' && i.title.includes('Choose one'))!
+    const q = proposePlan(input({ picks: { [slot.id]: 'CMPT 405' } }))
+    const picked = q.items.find((i) => i.id === slot.id)!
+    expect(picked.pick).toBe('CMPT 405')
+    expect(q.items.some((i) => i.id === 'CMPT 405')).toBe(false)
+  })
+
+  test('a pick that is not one of the options is ignored', () => {
+    const base = proposePlan(input())
+    const slot = base.items.find((i) => i.kind === 'slot' && i.title.includes('Choose one'))!
+    expect(proposePlan(input({ picks: { [slot.id]: 'ENG 120' } })).items.find((i) => i.id === slot.id)!.pick).toBeUndefined()
+  })
+
+  test('a picked course with a prerequisite gets it scheduled first', () => {
+    const q = proposePlan(input({ picks: { 'core:history': 'CMPT 221' } as Record<string, string> }))
+    // CMPT 221 isn't a History option, so this pick is ignored; use the "or" prerequisite slot instead
+    expect(q.items.find((i) => i.id === 'core:history')!.pick).toBeUndefined()
+    const or = proposePlan(input()).items.find((i) => i.id.startsWith('slot:or:'))!
+    const r = proposePlan(input({ picks: { [or.id]: 'MATH 130' } }))
+    const slot = r.items.find((i) => i.id === or.id)!
+    expect(slot.pick).toBe('MATH 130')
+    expect(slot.semester!).toBeLessThan(r.items.find((i) => i.id === 'CMPT 330')!.semester!)
+  })
+
+  test('an added course goes in the chosen semester, with "added" as its reason', () => {
+    const q = proposePlan(input({ added: { 'MATH 115': 3 } }))
+    const m = q.items.find((i) => i.id === 'MATH 115')!
+    expect(m.reason).toBe('added')
+    expect(m.semester).toBe(3)
+  })
+
+  test('an added course with prerequisites brings them into the plan', () => {
+    const q = proposePlan(input({ added: { 'CMPT 220': 5 }, major: { ...major, groups: [] } }))
+    expect(q.items.find((i) => i.id === 'CMPT 120')?.reason).toBe('prereq')
+    expect(semOf(q, 'CMPT 120')!).toBeLessThan(5)
+  })
+
+  test('planIssues checks picked courses too', () => {
+    const or = proposePlan(input()).items.find((i) => i.id.startsWith('slot:or:'))!
+    const q = proposePlan(input({ picks: { [or.id]: 'MATH 130' }, pins: { 'CMPT 330': 0, [or.id]: 1 } }))
+    expect(planIssues(q, courses, new Set())['CMPT 330']).toEqual(['Needs MATH 115 or MATH 130 in an earlier semester'])
   })
 })

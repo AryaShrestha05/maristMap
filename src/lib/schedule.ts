@@ -14,9 +14,11 @@ export interface PlanItem {
   title: string
   /** slots: the courses that would fill it (the student picks) */
   options?: string[]
+  /** slots: the course the student picked for it */
+  pick?: string
   credits: number
   /** why it's in the plan */
-  reason: 'major' | 'core' | 'prereq' | 'cart'
+  reason: 'major' | 'core' | 'prereq' | 'cart' | 'added'
   /** 0 = Year 1 Fall … 7 = Year 4 Spring; null = couldn't fit in four years */
   semester: number | null
   pinned: boolean
@@ -36,7 +38,14 @@ export interface PlanInput {
   start: number
   /** the student's own moves: item id → semester */
   pins: Record<string, number>
+  /** courses the student picked for "Choose" cards: slot id → course */
+  picks?: Record<string, string>
+  /** courses the student added themselves: course → semester */
+  added?: Record<string, number>
 }
+
+/** The course an item stands for: itself, or the course picked for a "Choose" card. */
+export const codeOf = (i: PlanItem): string | undefined => (i.kind === 'course' ? i.id : i.pick)
 
 export const termOf = (semester: number): Term => (semester % 2 === 0 ? 'fall' : 'spring')
 export const semesterLabel = (s: number): string => `Year ${Math.floor(s / 2) + 1} · ${termOf(s) === 'fall' ? 'Fall' : 'Spring'}`
@@ -97,7 +106,8 @@ function codesIn(p: Prereq | null, out: string[] = []): string[] {
  * need them, Fall-only / Spring-only courses in the right term, at most 16 credits a semester. Sections
  * that let the student choose stay open choices: the plan never picks a course for them.
  */
-export function proposePlan({ major, courses, taken, cart, start, pins }: PlanInput): ProposedPlan {
+export function proposePlan({ major, courses, taken, cart, start, pins: moved, picks = {}, added = {} }: PlanInput): ProposedPlan {
+  const pins = { ...added, ...moved }
   const items = new Map<string, PlanItem>()
   const add = (item: Omit<PlanItem, 'semester' | 'pinned'>): void => {
     if (!items.has(item.id)) items.set(item.id, { ...item, semester: null, pinned: false })
@@ -109,6 +119,7 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
   }
 
   for (const base of cart) addCourse(base, 'cart')
+  for (const base of Object.keys(added)) addCourse(base, 'added')
 
   // the major: every listed course, or open choices where the section lets the student pick
   const pools = new Set<string>()
@@ -142,15 +153,34 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
     }
   })
 
+  // the student's picks for "Choose" cards (only real options count)
+  const applyPicks = (): void => {
+    for (const item of items.values()) {
+      const pick = picks[item.id]
+      if (item.kind === 'slot' && pick && item.options?.includes(pick) && courses.has(pick)) {
+        item.pick = pick
+        item.credits = creditsOf(courses.get(pick))
+      }
+    }
+  }
+  applyPicks()
+
   // prerequisites the plan needs but doesn't have yet; "A or B" becomes an open choice
   const prereqSlots = new Set<string>()
+  const addPrereqs = (): void => {
   for (let changed = true; changed; ) {
     changed = false
     for (const item of [...items.values()]) {
-      if (item.kind !== 'course') continue
+      const code = codeOf(item)
+      if (!code) continue
       const walk = (p: Prereq | null): void => {
         if (!p) return
-        const have = new Set([...taken, ...items.keys(), ...[...prereqSlots].flatMap((id) => items.get(id)?.options ?? [])])
+        const have = new Set([
+          ...taken,
+          ...items.keys(),
+          ...[...items.values()].flatMap((i) => (i.pick ? [i.pick] : [])),
+          ...[...prereqSlots].flatMap((id) => items.get(id)?.options ?? [])
+        ])
         if (prereqCheck(p, have).met !== false) return
         if (p.kind === 'course') {
           if (courses.has(p.code)) {
@@ -164,15 +194,18 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
           const id = `slot:or:${options.join('|')}`
           add({ id, kind: 'slot', title: 'Prerequisite: one of', options, credits: creditsOf(courses.get(options[0])), reason: 'prereq' })
           prereqSlots.add(id)
+          applyPicks()
           changed = true
         }
       }
-      walk(courses.get(item.id)?.prereq ?? null)
+      walk(courses.get(code)?.prereq ?? null)
     }
   }
+  }
+  addPrereqs()
 
   // Core: what's still open once taken and planned courses are counted (one course per category)
-  const planned = new Set([...taken, ...[...items.values()].filter((i) => i.kind === 'course').map((i) => i.id)])
+  const planned = new Set([...taken, ...[...items.values()].flatMap((i) => (codeOf(i) ? [codeOf(i)!] : []))])
   const hist = historyCredits(planned, courses)
   const covered = new Set<string>()
   const used = new Set<string>()
@@ -191,17 +224,21 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
       add({ id: `core:${cat.id}`, kind: 'slot', title: `Core: ${cat.name}`, options, credits: cat.credits, reason: 'core' })
     }
   }
+  applyPicks()
+  addPrereqs()
 
   // ---- scheduling ----
   const list = [...items.values()]
   // what each item unlocks, for "longest chain first"
   const unlocks = new Map<string, string[]>()
   for (const item of list) {
-    if (item.kind !== 'course') continue
-    const c = courses.get(item.id)
+    const code = codeOf(item)
+    if (!code) continue
+    const c = courses.get(code)
     const codes = new Set([...codesIn(c?.prereq ?? null), ...(c && hasUnparsedPrereq(c) ? codesInText(c) : [])])
     for (const other of list) {
-      const hit = other.kind === 'course' ? codes.has(other.id) : prereqSlots.has(other.id) && other.options!.some((o) => codes.has(o))
+      const oc = codeOf(other)
+      const hit = (oc !== undefined && codes.has(oc)) || (prereqSlots.has(other.id) && other.options!.some((o) => codes.has(o)))
       if (hit) unlocks.set(other.id, [...(unlocks.get(other.id) ?? []), item.id])
     }
   }
@@ -234,8 +271,11 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
     if (hasUnparsedPrereq(c)) return codesInText(c).every((x) => have.has(x) || !items.has(x))
     return prereqCheck(c.prereq, new Set([...have, ...notInCatalog(c.prereq)])).met !== false
   }
-  const ready = (i: PlanItem, have: Set<string>, s: number): boolean =>
-    i.kind === 'course' ? courseReady(i.id, have, s) : !i.options?.length || i.options.some((o) => courseReady(o, have, s))
+  const ready = (i: PlanItem, have: Set<string>, s: number): boolean => {
+    const code = codeOf(i)
+    if (code) return courseReady(code, have, s)
+    return !i.options?.length || i.options.some((o) => courseReady(o, have, s))
+  }
 
   const creditsIn = new Array<number>(SEMESTERS).fill(0)
   for (const [id, s] of Object.entries(pins)) {
@@ -249,12 +289,12 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
     const have = new Set(taken)
     for (const i of list) {
       if (i.semester === null || i.semester >= s) continue
-      if (i.kind === 'course') have.add(i.id)
+      const code = codeOf(i)
+      if (code) have.add(code)
       else if (prereqSlots.has(i.id)) i.options!.forEach((o) => have.add(o))
     }
     return have
   }
-  const total = list.reduce((n, i) => n + i.credits, 0)
   const fill = (s: number, cap: number): void => {
     const have = haveBefore(s)
     const candidates = list.filter((i) => i.semester === null && (i.reason === 'cart' ? s === start : ready(i, have, s))).sort(priority)
@@ -264,13 +304,7 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
       creditsIn[s] += i.credits
     }
   }
-  // spread the work evenly: each semester aims for its share of what's left (12–16 credits)
-  for (let s = start; s < SEMESTERS; s++) {
-    const left = total - creditsIn.slice(start, s).reduce((n, c) => n + c, 0)
-    const share = Math.ceil(left / (SEMESTERS - s))
-    fill(s, Math.min(MAX_CREDITS, Math.max(12, share)))
-  }
-  // anything left over goes wherever there's still room
+  // each semester takes as much as is ready, up to the 16-credit limit
   for (let s = start; s < SEMESTERS; s++) fill(s, MAX_CREDITS)
   // still left (e.g. two Fall-only courses in a row): place after its prerequisites, ignoring the
   // term and level rules; planIssues reports the conflict
@@ -278,8 +312,9 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
     for (let s = start; s < SEMESTERS; s++) {
       if (creditsIn[s] + i.credits > MAX_CREDITS) continue
       const have = haveBefore(s)
-      const c = courses.get(i.id)
-      const after = i.kind !== 'course' || !c
+      const code = codeOf(i)
+      const c = code ? courses.get(code) : undefined
+      const after = !c
         ? true
         : hasUnparsedPrereq(c)
           ? codesInText(c).every((x) => have.has(x) || !items.has(x))
@@ -301,22 +336,24 @@ export function proposePlan({ major, courses, taken, cart, start, pins }: PlanIn
 export function planIssues(plan: ProposedPlan, courses: Map<string, Course>, taken: Set<string>): Record<string, string[]> {
   const out: Record<string, string[]> = {}
   for (const item of plan.items) {
-    if (item.kind !== 'course' || item.semester === null) continue
+    const code = codeOf(item)
+    if (!code || item.semester === null) continue
     const s = item.semester
-    const c = courses.get(item.id)
+    const c = courses.get(code)
     if (!c) continue
     const issues: string[] = []
     const have = new Set(taken)
     for (const i of plan.items) {
       if (i.semester === null || i.semester >= s) continue
-      if (i.kind === 'course') have.add(i.id)
+      const ic = codeOf(i)
+      if (ic) have.add(ic)
       else if (i.reason === 'prereq') i.options?.forEach((o) => have.add(o))
     }
     for (const x of codesIn(c.prereq)) if (!courses.has(x)) have.add(x)
     if (!hasUnparsedPrereq(c)) {
       const check = prereqCheck(c.prereq, have)
       if (check.met === false) {
-        const inPlan = check.missing.filter((m) => plan.items.some((i) => i.id === m || i.options?.includes(m)))
+        const inPlan = check.missing.filter((m) => plan.items.some((i) => codeOf(i) === m || i.options?.includes(m)))
         issues.push(`Needs ${(inPlan.length ? inPlan : check.missing).join(' or ')} in an earlier semester`)
       }
     }

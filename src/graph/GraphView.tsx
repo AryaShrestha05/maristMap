@@ -20,8 +20,6 @@ export interface GraphViewProps {
   onToggleCore: (categoryId: string) => void
   /** for the hover card: title and status line of a node */
   describe: (node: GNode) => { title: string; detail: string }
-  /** decorative background: no labels, no interaction, gentle drift */
-  ambient?: boolean
   /** while a course is open: the courses on its path, lit up together with it */
   highlight?: string[]
 }
@@ -191,7 +189,7 @@ export default function GraphView(props: GraphViewProps) {
         for (const v of E.views.values()) {
           v.g.position.set(v.sim.x, v.sim.y)
           v.g.alpha = !near || near.has(v.node.id) ? 1 : 0.15
-          const show = !p.ambient && (v.node.kind === 'hub' || zoomedIn || (near?.has(v.node.id) ?? false))
+          const show = v.node.kind === 'hub' || zoomedIn || (near?.has(v.node.id) ?? false)
           v.label.visible = show
           if (show) {
             placeLabel(v, E.views, zoomedIn)
@@ -272,7 +270,7 @@ export default function GraphView(props: GraphViewProps) {
       let v = E.views.get(n.id)
       if (!v) {
         const g = new Graphics()
-        g.eventMode = latest.current.ambient ? 'none' : 'static'
+        g.eventMode = 'static'
         g.cursor = 'pointer'
         g.on('pointerover', (ev) => {
           if (engine.current) engine.current.hover = n.id
@@ -343,7 +341,7 @@ export default function GraphView(props: GraphViewProps) {
     const E = engine.current
     if (!ready || !E) return
     E.palette = readPalette()
-    for (const v of E.views.values()) drawNode(v, E.palette, v.node.id === selectedId, !!props.ambient)
+    for (const v of E.views.values()) drawNode(v, E.palette, v.node.id === selectedId)
   }, [ready, nodes, theme, selectedId])
 
   // ---- focus ----
@@ -402,15 +400,10 @@ function placeLabel(v: View, views: Map<string, View>, zoomedIn: boolean): void 
   label.position.set(sim.x + cos * gap, sim.y + sin * gap)
 }
 
-function drawNode(v: View, p: Palette, selected: boolean, ambient: boolean): void {
+function drawNode(v: View, p: Palette, selected: boolean): void {
   const { g, node, sim, label } = v
   g.clear()
   const r = sim.radius
-  if (ambient) {
-    if (node.kind === 'hub') g.circle(0, 0, r * 0.8).fill({ color: p.root, alpha: 0.55 })
-    else g.circle(0, 0, r * 0.75).fill({ color: p.root, alpha: 0.35 })
-    return
-  }
   if (node.root) {
     g.circle(0, 0, r + 6).fill({ color: p.root, alpha: 0.14 })
     g.circle(0, 0, r).fill({ color: p.root })

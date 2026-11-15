@@ -230,12 +230,6 @@ h3 {
     radial-gradient(var(--grid-dot) 1px, transparent 1.4px) 0 0 / 22px 22px,
     var(--bg);
 }
-.start-bg {
-  position: absolute;
-  inset: 0;
-  opacity: 0.6;
-  pointer-events: none;
-}
 .start-vignette {
   position: absolute;
   inset: 0;

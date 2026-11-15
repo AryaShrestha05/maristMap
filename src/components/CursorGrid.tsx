@@ -3,8 +3,10 @@ import { useEffect, useRef, type ReactNode } from 'react'
 export interface CursorGridProps {
   /** size of one grid cell in CSS pixels */
   cellSize?: number
-  /** color of lines, fills, glow and pulses */
+  /** color of the grid lines (and of the highlight, unless `highlightColor` is set) */
   color?: string
+  /** color of lit cells, the spotlight and click pulses */
+  highlightColor?: string
   /** 'area' lights every cell within `radius`; 'cell' lights only the cell under the cursor */
   highlight?: 'area' | 'cell'
   gridStyle?: 'lines' | 'dots'
@@ -37,7 +39,13 @@ const PULSE_MS = 900
 /** Parses #rgb / #rrggbb into "r, g, b" for rgba() strings. */
 function rgb(color: string): string {
   const hex = color.replace('#', '')
-  const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex
+  const full =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : hex
   const n = Number.parseInt(full, 16)
   if (Number.isNaN(n)) return '255, 255, 255'
   return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
@@ -50,6 +58,7 @@ function rgb(color: string): string {
 export default function CursorGrid({
   cellSize = 60,
   color = '#ffffff',
+  highlightColor,
   highlight = 'area',
   gridStyle = 'lines',
   radius = 140,
@@ -72,6 +81,7 @@ export default function CursorGrid({
     if (!el || !cv || !ctx) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const c = rgb(color)
+    const hc = rgb(highlightColor ?? color)
 
     let w = 0
     let h = 0
@@ -155,7 +165,7 @@ export default function CursorGrid({
           const d = Math.hypot(col * cellSize + cellSize / 2 - pointer.x, r * cellSize + cellSize / 2 - pointer.y)
           near = d <= radius ? 1 - (d / radius) * 0.6 : 0.4
         }
-        ctx.fillStyle = `rgba(${c}, ${fillOpacity * life * near})`
+        ctx.fillStyle = `rgba(${hc}, ${fillOpacity * life * near})`
         ctx.fillRect(col * cellSize + 1, r * cellSize + 1, cellSize - 1, cellSize - 1)
       }
 
@@ -163,8 +173,8 @@ export default function CursorGrid({
 
       if (pointer && spotlight > 0) {
         const g = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, radius * 1.6)
-        g.addColorStop(0, `rgba(${c}, ${0.12 * spotlight})`)
-        g.addColorStop(1, `rgba(${c}, 0)`)
+        g.addColorStop(0, `rgba(${hc}, ${0.12 * spotlight})`)
+        g.addColorStop(1, `rgba(${hc}, 0)`)
         ctx.fillStyle = g
         ctx.fillRect(0, 0, w, h)
       }
@@ -176,7 +186,7 @@ export default function CursorGrid({
           pulses.splice(i, 1)
           continue
         }
-        ctx.strokeStyle = `rgba(${c}, ${0.45 * (1 - k)})`
+        ctx.strokeStyle = `rgba(${hc}, ${0.45 * (1 - k)})`
         ctx.lineWidth = 2
         ctx.beginPath()
         ctx.arc(p.x, p.y, 8 + k * radius * 1.4, 0, Math.PI * 2)
@@ -219,7 +229,20 @@ export default function CursorGrid({
       el.removeEventListener('pointerleave', onLeave)
       el.removeEventListener('pointerdown', onDown)
     }
-  }, [cellSize, color, highlight, gridStyle, radius, holdTime, fadeDuration, fillOpacity, gridOpacity, spotlight, clickPulse])
+  }, [
+    cellSize,
+    color,
+    highlightColor,
+    highlight,
+    gridStyle,
+    radius,
+    holdTime,
+    fadeDuration,
+    fillOpacity,
+    gridOpacity,
+    spotlight,
+    clickPulse
+  ])
 
   return (
     <div ref={host} className={className} style={{ position: 'relative', width: '100%', height: '100%' }}>

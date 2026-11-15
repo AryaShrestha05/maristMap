@@ -27,6 +27,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null)
   const [focus, setFocus] = useState<string | null>(null)
   const [expandedCore, setExpandedCore] = useState<string | null>(null)
+  const [drawer, setDrawer] = useState(false)
 
   // layout effect: the theme attribute must change before the graph reads the theme's colors
   useLayoutEffect(() => {
@@ -85,6 +86,7 @@ export default function App() {
       cart: cart.has(base) ? s.cart.filter((b) => b !== base) : [...s.cart, base]
     })
   const open = (base: string): void => {
+    setDrawer(false)
     setSelected(base)
     setFocus(base)
   }
@@ -92,7 +94,10 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setSelected(null)
+      if (e.key === 'Escape') {
+        setSelected(null)
+        setDrawer(false)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -218,6 +223,14 @@ export default function App() {
           <img src="/fox.png" alt="" />
           maristMap
         </button>
+        <button
+          className="drawer-toggle"
+          aria-expanded={drawer}
+          aria-controls="plan-drawer"
+          onClick={() => setDrawer((d) => !d)}
+        >
+          My plan
+        </button>
         <MajorPicker
           variant="nav"
           majors={MAJORS}
@@ -268,7 +281,9 @@ export default function App() {
       </nav>
 
       <div className="main">
+        {drawer && <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
         <Sidebar
+          open={drawer}
           taken={taken}
           cart={s.cart}
           onOpen={open}

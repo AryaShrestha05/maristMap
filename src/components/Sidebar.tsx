@@ -5,6 +5,7 @@ import { cartWarnings, classifyAudit, coreProgress } from '../lib/plan'
 
 /** Plan column: cart, Core progress, DegreeWorks import. */
 export default function Sidebar({
+  open = false,
   taken,
   cart,
   onOpen,
@@ -15,6 +16,8 @@ export default function Sidebar({
   onClearCart,
   majorProgress
 }: {
+  /** narrow screens: the sidebar is a drawer */
+  open?: boolean
   taken: Set<string>
   cart: string[]
   onOpen: (base: string) => void
@@ -35,7 +38,7 @@ export default function Sidebar({
   const credits = cart.reduce((n, b) => n + (Number.parseFloat(COURSE_BY_BASE.get(b)?.credits ?? '') || 0), 0)
 
   return (
-    <aside className="sidebar" aria-label="Your plan">
+    <aside className={open ? 'sidebar open' : 'sidebar'} id="plan-drawer" aria-label="Your plan">
       <section className="taken-bar" aria-live="polite">
         {confirming ? (
           <>

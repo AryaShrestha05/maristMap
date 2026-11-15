@@ -198,6 +198,12 @@ export function groupProgress(
   taken: Set<string>,
   courses: Map<string, Course>
 ): { done: number; needed: number; unit: 'courses' | 'credits'; satisfied: boolean } {
+  if (group.pool) {
+    const done = group.pool.courses
+      .filter((b) => taken.has(b))
+      .reduce((n, b) => n + (Number.parseFloat(courses.get(b)?.credits ?? '') || 0), 0)
+    return { done, needed: group.pool.credits, unit: 'credits', satisfied: done >= group.pool.credits }
+  }
   const takenHere = group.courses.filter((b) => taken.has(b))
   if (group.pick?.credits) {
     const done = takenHere.reduce((n, b) => n + (Number.parseFloat(courses.get(b)?.credits ?? '') || 0), 0)

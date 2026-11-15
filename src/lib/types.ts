@@ -33,6 +33,8 @@ export interface ReqGroup {
   notes: string[]
   /** "choose N" rule read from the title or notes; absent = every listed course is required */
   pick?: { count?: number; credits?: number }
+  /** areas that share one credit total from their parent heading ("1.1 Breadth …: 16 cr") */
+  pool?: { title: string; credits: number; courses: string[] }
 }
 
 export interface Major {

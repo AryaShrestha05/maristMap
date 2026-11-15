@@ -283,3 +283,47 @@ describe('a named track nested inside a concentration', () => {
     expect(parsePrograms([page], byCoid).map((m) => m.concentration)).toEqual(['Corporate Finance', 'Investments'])
   })
 })
+
+describe('areas under one credit total', () => {
+  // Shape from "Psychology, B.A.": "1.1 Breadth …: 16 cr" lists no courses; its areas do, with no rule of their own
+  const page: RawProgram = {
+    poid: '302',
+    name: 'Psychology, B.A.',
+    url: 'u',
+    items: [
+      { type: 'heading', level: 3, text: '1.1 Breadth of Psychology Major Requirements: 6 cr' },
+      { type: 'heading', level: 4, text: 'Developmental Psychology' },
+      { type: 'course', text: 'CMPT 120L - x 3 Credit(s)', coid: '1' },
+      { type: 'course', text: 'CMPT 220L - x 3 Credit(s)', coid: '2' },
+      { type: 'heading', level: 4, text: 'Biological Psychology' },
+      { type: 'course', text: 'BUS 100L - x 3 Credit(s)', coid: '3' },
+      { type: 'heading', level: 3, text: '1.2 Something else: 3 cr' },
+      { type: 'course', text: 'CMPT 404L - x 3 Credit(s)', coid: '4' }
+    ]
+  }
+
+  test('share that total as one pool instead of each requiring every course', () => {
+    const [m] = parsePrograms([page], byCoid)
+    const pool = { title: '1.1 Breadth of Psychology Major Requirements', credits: 6, courses: ['CMPT 120', 'CMPT 220', 'BUS 100'] }
+    expect(m.groups.map((g) => g.pool ?? null)).toEqual([pool, pool, null])
+  })
+})
+
+test('areas with their own "choose" rules further down are not pooled (Business Administration)', () => {
+  const page: RawProgram = {
+    poid: '303',
+    name: 'Business Administration, B.S.',
+    url: 'u',
+    items: [
+      { type: 'heading', level: 3, text: 'Concentrations: 12 cr' },
+      { type: 'heading', level: 4, text: 'Finance' },
+      { type: 'course', text: 'CMPT 120L - x 3 Credit(s)', coid: '1' },
+      { type: 'text', text: 'Choose one from:' },
+      { type: 'course', text: 'CMPT 220L - x 3 Credit(s)', coid: '2' },
+      { type: 'course', text: 'CMPT 404L - x 3 Credit(s)', coid: '4' },
+      { type: 'heading', level: 4, text: 'Marketing' },
+      { type: 'course', text: 'BUS 100L - x 3 Credit(s)', coid: '3' }
+    ]
+  }
+  expect(parsePrograms([page], byCoid)[0].groups.every((g) => !g.pool)).toBe(true)
+})

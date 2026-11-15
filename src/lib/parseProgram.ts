@@ -66,6 +66,8 @@ function courseBase(item: { text: string; coid: string | null }, byCoid: Map<str
 interface Section {
   group: ReqGroup
   concentration: string | null
+  /** heading level; text sub-heads get their parent's level + 1 */
+  level: number
 }
 
 /** Turns catalog program pages into majors (one per concentration), keeping instructions verbatim. */
@@ -86,13 +88,13 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
 
     let lastCourse: string | null = null
     let orPending = false
-    const start = (text: string, isConcentrationHeading = false): void => {
+    const start = (text: string, isConcentrationHeading = false, level = (current as Section | null)?.level ?? 0): void => {
       const { title, credits } = splitTitle(text)
       // sub-sections of a concentration carry its name ("Analytics: Choice of either")
       const full = concentration && !isConcentrationHeading && !title.toLowerCase().includes(concentration.toLowerCase())
         ? `${concentration}: ${title}`
         : title
-      current = { group: { title: full, credits, courses: [], notes: [] }, concentration }
+      current = { group: { title: full, credits, courses: [], notes: [] }, concentration, level }
       sections.push(current)
       lastCourse = null
       orPending = false
@@ -119,12 +121,12 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
         if (CONCENTRATION_RE.test(item.text) && !generic) {
           concentration = cleaned
           concentrationLevel = item.level
-          start(item.text, true)
+          start(item.text, true, item.level)
           continue
         } else if (concentration && item.level <= concentrationLevel) {
           concentration = null
         }
-        start(item.text)
+        start(item.text, false, item.level)
       } else if (item.type === 'course') {
         if (!current) start(name)
         const base = courseBase(item, byCoid)
@@ -143,8 +145,8 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
           if (/or/i.test(item.text)) orPending = true
           continue
         }
-        if (SUBHEAD_RE.test(item.text) && cur.group.courses.length > 0) start(item.text)
-        else if (SUBHEAD_RE.test(item.text) && cur.group.courses.length === 0 && cur.group.notes.length > 0) start(item.text)
+        if (SUBHEAD_RE.test(item.text) && cur.group.courses.length > 0) start(item.text, false, cur.level + 1)
+        else if (SUBHEAD_RE.test(item.text) && cur.group.courses.length === 0 && cur.group.notes.length > 0) start(item.text, false, cur.level + 1)
         else if (item.text.replace(/:$/, '') === cur.group.title) continue
         else if (!cur.group.notes.includes(item.text)) cur.group.notes.push(item.text)
       }
@@ -160,6 +162,23 @@ export function parsePrograms(raw: RawProgram[], byCoid: Map<string, Course>): M
         if (need > 0 && listed > need) sec.group.pick = { credits: need }
       }
     }
+    // "1.1 Breadth …: 16 cr" listing no courses itself, over areas that state no rule of their own:
+    // the areas share the 16 credits (a pool), rather than each requiring every course it lists
+    sections.forEach((parent, i) => {
+      const need = Number.parseInt(parent.group.credits ?? '', 10)
+      if (!(need > 0) || parent.group.courses.length > 0) return
+      const kids: Section[] = []
+      const below: Section[] = []
+      for (let j = i + 1; j < sections.length && sections[j].level > parent.level; j++) {
+        below.push(sections[j])
+        if (sections[j].level === parent.level + 1) kids.push(sections[j])
+      }
+      const withOwnRule = (k: Section): boolean =>
+        !!k.group.pick || !!k.group.credits || /\ball\b/i.test(`${k.group.title} ${k.group.notes.join(' ')}`)
+      if (kids.filter((k) => k.group.courses.length > 0).length < 2 || below.some(withOwnRule)) return
+      const pool = { title: parent.group.title, credits: need, courses: [...new Set(kids.flatMap((k) => k.group.courses))] }
+      for (const k of kids) k.group.pool = pool
+    })
     const withCourses = sections.filter((s) => s.group.courses.length > 0)
     if (withCourses.length === 0) continue
     const shared = withCourses.filter((s) => !s.concentration).map((s) => s.group)

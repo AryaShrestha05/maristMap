@@ -181,3 +181,14 @@ describe('classifyAudit (DegreeWorks paste)', () => {
     expect(classifyAudit('CMPT 120, CMPT 220', courses)).toEqual({ completed: ['CMPT 120', 'CMPT 220'], inProgress: [] })
   })
 })
+
+
+describe('groupProgress for a pooled area', () => {
+  test('counts credits across every area in the pool', () => {
+    const pool = { title: 'Breadth', credits: 6, courses: ['ENG 170', 'REST 214'] }
+    const area = { title: 'Developmental', credits: null, courses: ['ENG 170'], notes: [], pool }
+    const cmap = new Map(['ENG 170', 'REST 214'].map((b) => [b, course(b)]))
+    expect(groupProgress(area, new Set(['REST 214']), cmap)).toEqual({ done: 3, needed: 6, unit: 'credits', satisfied: false })
+    expect(groupProgress(area, new Set(['REST 214', 'ENG 170']), cmap).satisfied).toBe(true)
+  })
+})

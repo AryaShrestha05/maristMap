@@ -1,5 +1,7 @@
 # maristMap
 
+https://marist-map.vercel.app/
+
 A course planner for Marist students. Pick your major and you get every course it needs as a map: what each one requires, what it unlocks, and what you can take next semester.
 
 Planning classes here usually means having the catalog, DegreeWorks and a stack of Core PDFs open at the same time and piecing it together yourself. I wanted one place where you could just see it.
